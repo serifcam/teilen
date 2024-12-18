@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "383295014292",
+    "project_id": "teilen2",
+    "storage_bucket": "teilen2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:383295014292:android:a3196eacf4640cbb1ebb81",
+        "android_client_info": {
+          "package_name": "com.example.teilen2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRzCDxWil6icIiQlzm9EWzCSSD9YoniIA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
