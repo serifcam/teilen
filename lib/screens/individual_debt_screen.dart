@@ -78,11 +78,9 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
       final friendEmail =
           friendDoc.docs.first.data()['email'] ?? "Bilinmeyen Kullanıcı";
 
-      // İlişkilerin doğru atanması
       String relationValue =
           _relation == 'me_to_friend' ? 'me_to_friend' : 'friend_to_me';
 
-      // Bildirimi gönderirken e-posta adreslerini ekle
       final notificationData = {
         'fromUser': user!.uid,
         'fromUserEmail': user.email ?? "Bilinmeyen Kullanıcı",
@@ -95,14 +93,12 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
         'createdAt': Timestamp.now(),
       };
 
-      // Bildirimi Firestore'a ekle
       await _firestore.collection('notifications').add(notificationData);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Bildirim gönderildi, onay bekleniyor!')),
       );
 
-      // Giriş alanlarını temizle
       _amountController.clear();
       _descriptionController.clear();
       setState(() => _selectedFriendEmail = null);
@@ -119,29 +115,60 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
         ? '${createdAt.toDate().day}/${createdAt.toDate().month}/${createdAt.toDate().year} ${createdAt.toDate().hour}:${createdAt.toDate().minute}'
         : 'Tarih Bilinmiyor';
 
+    bool isMeToFriend = data['relation'] == 'me_to_friend';
+
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       elevation: 4,
       margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      child: ListTile(
-        title: Text(data['friendEmail']),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Açıklama: ${data['description']}'),
-            Text('Borç: ${data['amount']} TL'),
-            Text(
-              'Tarih: $formattedDate',
-              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+      child: Row(
+        children: [
+          Container(
+            width: 80, // Sol kısmın genişliği
+            decoration: BoxDecoration(
+              border: Border(
+                right: BorderSide(
+                    color: Colors.grey.shade300, width: 1), // İnce çizgi
+              ),
             ),
-          ],
-        ),
-        leading: Icon(
-          data['relation'] == 'me_to_friend'
-              ? Icons.arrow_upward
-              : Icons.arrow_downward,
-          color: data['relation'] == 'me_to_friend' ? Colors.red : Colors.green,
-        ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  isMeToFriend ? Icons.arrow_upward : Icons.arrow_downward,
+                  color: isMeToFriend ? Colors.red : Colors.green,
+                ),
+                SizedBox(height: 4),
+                Text(
+                  isMeToFriend ? 'Borçluyum' : 'Borçlu',
+                  style: TextStyle(
+                    fontSize: 10, // Daha küçük boyut
+                    fontWeight: FontWeight.bold,
+                    color: isMeToFriend ? Colors.red : Colors.green,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Kişi: ${data['friendEmail']}'),
+                  Text('Açıklama: ${data['description']}'),
+                  Text('Borç: ${data['amount']} TL'),
+                  Text(
+                    'Tarih: $formattedDate',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
