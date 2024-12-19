@@ -30,7 +30,7 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.grey[800],
+        backgroundColor: Colors.grey[850],
         actions: [
           // Bildirim Butonu
           IconButton(
@@ -47,6 +47,7 @@ class _MainScreenState extends State<MainScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
+        backgroundColor: Colors.grey[850], // Navigation bar rengini ayarla
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.account_balance_wallet),
@@ -65,8 +66,9 @@ class _MainScreenState extends State<MainScreen> {
             label: 'Ayarlar',
           ),
         ],
-        selectedItemColor: Colors.teal,
-        unselectedItemColor: Colors.grey,
+        selectedItemColor: Colors.white, // Seçili ikonun rengi
+        unselectedItemColor: Colors.white70, // Seçili olmayan ikonların rengi
+        type: BottomNavigationBarType.fixed, // Düzgün görünmesi için sabit tür
       ),
     );
   }

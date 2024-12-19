@@ -1,6 +1,5 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_profile_picture/flutter_profile_picture.dart'; // Profil fotoğrafı paketi
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -8,8 +7,10 @@ class SettingsScreen extends StatelessWidget {
   void _signOut(BuildContext context) async {
     try {
       await FirebaseAuth.instance.signOut();
-      Navigator.of(context)
-          .pushReplacementNamed('/auth'); // Giriş ekranına yönlendir
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        '/auth', // LoginScreen'e yönlendirme
+        (Route<dynamic> route) => false, // Önceki rotaları temizle
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Çıkış yapılamadı: $e')),
@@ -19,7 +20,7 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser; // Mevcut kullanıcıyı al
+    final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       appBar: AppBar(
@@ -29,15 +30,11 @@ class SettingsScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Profil Fotoğrafı ve E-Posta
             CircleAvatar(
               radius: 60,
-              child: ProfilePicture(
-                name: user?.email ??
-                    'Kullanıcı', // E-posta kullanarak avatar oluştur
-                radius: 60,
-                fontsize: 30,
-                random: true, // Rastgele temsili avatar
+              child: Text(
+                user?.email?.substring(0, 1).toUpperCase() ?? '',
+                style: TextStyle(fontSize: 40),
               ),
             ),
             SizedBox(height: 12),
