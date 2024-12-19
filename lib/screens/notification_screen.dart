@@ -13,58 +13,40 @@ class NotificationScreen extends StatelessWidget {
     });
 
     if (status == 'approved') {
-      if (data['type'] == 'add_request') {
-        // Borç ekleme işlemi
-        String borrowerId = data['relation'] == 'friend_to_me'
-            ? data['toUser']
-            : data['fromUser'];
-        String creditorId = data['relation'] == 'friend_to_me'
-            ? data['fromUser']
-            : data['toUser'];
+      // Bildirim onaylandığında borcu hem borçluya hem de alacaklıya ekle
+      String borrowerId = data['relation'] == 'friend_to_me'
+          ? data['toUser'] // O Bana
+          : data['fromUser']; // Ben Ona
+      String creditorId = data['relation'] == 'friend_to_me'
+          ? data['fromUser'] // O Bana
+          : data['toUser']; // Ben Ona
 
-        String borrowerEmail = data['relation'] == 'friend_to_me'
-            ? data['toUserEmail'] ?? "Bilinmeyen Kullanıcı"
-            : data['fromUserEmail'] ?? "Bilinmeyen Kullanıcı";
-        String creditorEmail = data['relation'] == 'friend_to_me'
-            ? data['fromUserEmail'] ?? "Bilinmeyen Kullanıcı"
-            : data['toUserEmail'] ?? "Bilinmeyen Kullanıcı";
+      String borrowerEmail = data['relation'] == 'friend_to_me'
+          ? data['toUserEmail'] ?? "Bilinmeyen Kullanıcı"
+          : data['fromUserEmail'] ?? "Bilinmeyen Kullanıcı";
+      String creditorEmail = data['relation'] == 'friend_to_me'
+          ? data['fromUserEmail'] ?? "Bilinmeyen Kullanıcı"
+          : data['toUserEmail'] ?? "Bilinmeyen Kullanıcı";
 
-        // Borçlu için kayıt
-        await _firestore.collection('individualDebts').add({
-          'borrowerId': borrowerId,
-          'friendEmail': creditorEmail,
-          'amount': data['amount'] ?? 0.0,
-          'relation': 'me_to_friend',
-          'description': data['description'] ?? "Açıklama yok",
-          'createdAt': Timestamp.now(),
-        });
+      // Borçlu için kayıt
+      await _firestore.collection('individualDebts').add({
+        'borrowerId': borrowerId,
+        'friendEmail': creditorEmail,
+        'amount': data['amount'] ?? 0.0,
+        'relation': 'me_to_friend', // Borçlu bakış açısından
+        'description': data['description'] ?? "Açıklama yok",
+        'createdAt': Timestamp.now(),
+      });
 
-        // Alacaklı için kayıt
-        await _firestore.collection('individualDebts').add({
-          'borrowerId': creditorId,
-          'friendEmail': borrowerEmail,
-          'amount': data['amount'] ?? 0.0,
-          'relation': 'friend_to_me',
-          'description': data['description'] ?? "Açıklama yok",
-          'createdAt': Timestamp.now(),
-        });
-      } else if (data['type'] == 'delete_request') {
-        // Borç silme işlemi
-        await _firestore
-            .collection('individualDebts')
-            .doc(data['debtId'])
-            .delete();
-        await _firestore
-            .collection('individualDebts')
-            .where('borrowerId', isEqualTo: data['toUser'])
-            .where('friendEmail', isEqualTo: data['fromUserEmail'])
-            .get()
-            .then((querySnapshot) {
-          for (var doc in querySnapshot.docs) {
-            doc.reference.delete();
-          }
-        });
-      }
+      // Alacaklı için kayıt
+      await _firestore.collection('individualDebts').add({
+        'borrowerId': creditorId,
+        'friendEmail': borrowerEmail,
+        'amount': data['amount'] ?? 0.0,
+        'relation': 'friend_to_me', // Alacaklı bakış açısından
+        'description': data['description'] ?? "Açıklama yok",
+        'createdAt': Timestamp.now(),
+      });
     }
   }
 
@@ -100,17 +82,10 @@ class NotificationScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final data = notifications[index].data() as Map<String, dynamic>;
               final notificationId = notifications[index].id;
-              final String message;
-              if (data['type'] == 'add_request') {
-                message = data['relation'] == 'me_to_friend'
-                    ? "${data['fromUserEmail']} size ${data['amount']} TL borç ekledi."
-                    : "Siz ${data['toUserEmail']} kişisine ${data['amount']} TL borç eklediniz.";
-              } else if (data['type'] == 'delete_request') {
-                message =
-                    "${data['fromUserEmail']} borcun silinmesini istiyor.";
-              } else {
-                message = "Bilinmeyen bildirim.";
-              }
+
+              final String message = data['relation'] == 'me_to_friend'
+                  ? "${data['fromUserEmail'] ?? "Bilinmeyen Kullanıcı"} size ${data['amount'] ?? 0} TL borç ekledi."
+                  : "Siz ${data['toUserEmail'] ?? "Bilinmeyen Kullanıcı"} kişisine ${data['amount'] ?? 0} TL borç eklediniz.";
 
               return Card(
                 margin: EdgeInsets.all(8.0),
