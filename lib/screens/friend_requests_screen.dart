@@ -60,6 +60,14 @@ class FriendRequestsScreen extends StatelessWidget {
                   final senderData =
                       userSnapshot.data!.data() as Map<String, dynamic>;
                   return ListTile(
+                    leading: senderData['profileImageUrl'] != null
+                        ? CircleAvatar(
+                            backgroundImage:
+                                NetworkImage(senderData['profileImageUrl']),
+                          )
+                        : CircleAvatar(
+                            child: Icon(Icons.person),
+                          ),
                     title: Text(senderData['email'] ?? ''),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,

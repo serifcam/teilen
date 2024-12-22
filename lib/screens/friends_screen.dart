@@ -183,16 +183,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
                         final friendId = friendDocs[index].id;
 
                         return ListTile(
-                          leading: CircleAvatar(
-                            radius: 20,
-                            backgroundImage: friendData['profileImageUrl'] !=
-                                    null
-                                ? NetworkImage(friendData['profileImageUrl'])
-                                : null,
-                            child: friendData['profileImageUrl'] == null
-                                ? Icon(Icons.person, size: 20)
-                                : null,
-                          ),
+                          leading: friendData['profileImageUrl'] != null
+                              ? CircleAvatar(
+                                  backgroundImage: NetworkImage(
+                                      friendData['profileImageUrl']),
+                                )
+                              : CircleAvatar(
+                                  child: Icon(Icons.person),
+                                ),
                           title: Text(friendData['email'] ?? ''),
                           trailing: IconButton(
                             icon: Icon(Icons.delete, color: Colors.red),

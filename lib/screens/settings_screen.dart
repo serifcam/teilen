@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -15,6 +16,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String? _profileImageUrl;
 
   @override
@@ -28,11 +30,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (user == null) return;
 
     try {
-      final ref = _storage.ref().child('profile_images/${user.uid}.jpg');
-      final url = await ref.getDownloadURL();
-      setState(() {
-        _profileImageUrl = url;
-      });
+      final doc = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .get(); // Firestore'dan kullanıcı bilgilerini çek
+      if (doc.exists) {
+        setState(() {
+          _profileImageUrl = doc['profileImageUrl'];
+        });
+      }
     } catch (e) {
       print('Profil resmi yüklenirken hata oluştu: $e');
     }
@@ -52,12 +58,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await ref.putFile(File(pickedFile.path));
 
       final url = await ref.getDownloadURL();
+
       setState(() {
         _profileImageUrl = url;
       });
 
+      // Firestore'da `profileImageUrl` alanını güncelle
+      await _firestore.collection('users').doc(user.uid).update({
+        'profileImageUrl': url,
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Profil resmi başarıyla yüklendi!')),
+        SnackBar(
+            content: Text('Profil resmi başarıyla yüklendi ve kaydedildi!')),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
