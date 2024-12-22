@@ -24,11 +24,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _password,
       );
 
+      // Varsayılan profil resmi URL'si
+      const defaultProfileImageUrl =
+          'https://firebasestorage.googleapis.com/v0/b/your-app-id.appspot.com/o/default_profile.png?alt=media';
+
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
         'uid': userCredential.user!.uid,
         'email': _email,
         'name': _name,
         'friends': [],
+        'profileImageUrl': defaultProfileImageUrl, // Profil resmi eklendi
         'createdAt': Timestamp.now(),
       });
 

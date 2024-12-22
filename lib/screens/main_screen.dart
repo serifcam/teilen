@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'individual_debt_screen.dart';
-import 'add_friend_screen.dart';
+import 'package:teilen2/screens/friends_screen.dart';
 import 'settings_screen.dart';
 import 'group_expense_screen.dart';
 import 'notification_screen.dart'; // Bildirim ekranını import ettim
@@ -16,7 +16,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _pages = [
     IndividualDebtScreen(), // Bireysel Borç Takibi
     GroupExpenseScreen(), // Grup Harcamaları
-    AddFriendScreen(), // Arkadaş Ekleme
+    FriendsScreen(), // Arkadaşlarım (FriendsScreen olarak güncellendi)
     SettingsScreen(), // Ayarlar
   ];
 
@@ -31,6 +31,7 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.grey[850],
+        title: Text('Teilen'), // AppBar için başlık
         actions: [
           // Bildirim Butonu
           IconButton(
@@ -59,7 +60,7 @@ class _MainScreenState extends State<MainScreen> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_add),
-            label: 'Arkadaş Ekle',
+            label: 'Arkadaşlarım',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings),

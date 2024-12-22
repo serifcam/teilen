@@ -33,6 +33,7 @@ dependencies:
   
   #Flutter
   firebase_core: ^3.8.1
+  firebase_storage: ^12.3.7
   firebase_auth: ^5.3.4
   firebase_messaging: ^15.1.6
   provider: ^6.1.2
@@ -48,6 +49,7 @@ dependencies:
   fluttertoast: ^8.2.10
   smooth_page_indicator: ^1.2.0+3
   lottie: ^3.3.0
+  image_picker: ^1.1.2
   
   #Setting
   flutter_profile_picture: ^2.0.0 # Temsili profil resmi
