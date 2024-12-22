@@ -74,23 +74,27 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
         return;
       }
 
-      final friendId = friendDoc.docs.first.id;
+      final friendId = friendDoc.docs.first.id; // Arkadaşın UID'si
       final friendEmail =
           friendDoc.docs.first.data()['email'] ?? "Bilinmeyen Kullanıcı";
 
       String relationValue =
           _relation == 'me_to_friend' ? 'me_to_friend' : 'friend_to_me';
 
+      final userUid = user!.uid;
+      final userEmail = user.email ?? "Bilinmeyen Kullanıcı";
+
       final notificationData = {
-        'fromUser': user!.uid,
-        'fromUserEmail': user.email ?? "Bilinmeyen Kullanıcı",
-        'toUser': friendId,
+        'fromUser': userUid,
+        'fromUserEmail': userEmail,
+        'toUser': friendId, // Borç bildirimi kime gidiyor
         'toUserEmail': friendEmail,
         'amount': double.parse(_amountController.text),
         'description': _descriptionController.text,
         'relation': relationValue,
         'status': 'pending',
         'createdAt': Timestamp.now(),
+        'type': 'newDebt',
       };
 
       await _firestore.collection('notifications').add(notificationData);
@@ -109,7 +113,91 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
     }
   }
 
-  Widget _buildDebtCard(Map<String, dynamic> data) {
+  /// Borçlu kişi “X” ikonuna basınca çağrılacak fonksiyon
+  Future<void> _confirmDebtPaid(
+    BuildContext context,
+    String debtDocId,
+    Map<String, dynamic> debtData,
+  ) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Onay'),
+        content: Text('Borcu ödediğinizi onaylıyor musunuz?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Hayır'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Evet'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        final currentUser = _auth.currentUser;
+        if (currentUser == null) return;
+
+        final myEmail = currentUser.email ?? '';
+
+        // 1) Karşı tarafın UID'sini bulmak için friendEmail'e göre sorgu
+        final friendQuery = await _firestore
+            .collection('users')
+            .where('email', isEqualTo: debtData['friendEmail'])
+            .limit(1)
+            .get();
+
+        String friendUid = '';
+        if (friendQuery.docs.isNotEmpty) {
+          friendUid = friendQuery.docs.first.id;
+        }
+
+        // 2) Karşı tarafın borç dokümanını bulmak için query
+        final query = await _firestore
+            .collection('individualDebts')
+            .where('borrowerId', isNotEqualTo: currentUser.uid)
+            .where('friendEmail', isEqualTo: myEmail)
+            .where('amount', isEqualTo: debtData['amount'])
+            .where('description', isEqualTo: debtData['description'])
+            .get();
+
+        String? creditorDebtDocId;
+        if (query.docs.isNotEmpty) {
+          creditorDebtDocId = query.docs.first.id;
+        }
+
+        // 3) "Borç ödendi" bildirimini karşı tarafa gönderelim
+        await _firestore.collection('notifications').add({
+          'type': 'debtPaid',
+          'status': 'pending',
+          'fromUser': currentUser.uid, // borcu ödeyen (borçlu)
+          'fromUserEmail': myEmail,
+          'toUser': friendUid, // alacaklı kişinin UID'si (önemli kısım!)
+          'toUserEmail': debtData['friendEmail'],
+          'amount': debtData['amount'],
+          'description': debtData['description'],
+          'createdAt': Timestamp.now(),
+          'borrowerDebtDocId': debtDocId, // borçlunun dokümanı
+          'creditorDebtDocId': creditorDebtDocId, // alacaklının dokümanı
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Borcu ödediğinize dair bildirim gönderildi.')),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Hata: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildDebtCard(Map<String, dynamic> data, String docId) {
     final createdAt = data['createdAt'] as Timestamp?;
     String formattedDate = createdAt != null
         ? '${createdAt.toDate().day}/${createdAt.toDate().month}/${createdAt.toDate().year} ${createdAt.toDate().hour}:${createdAt.toDate().minute}'
@@ -124,11 +212,13 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
       child: Row(
         children: [
           Container(
-            width: 80, // Sol kısmın genişliği
+            width: 80,
             decoration: BoxDecoration(
               border: Border(
                 right: BorderSide(
-                    color: Colors.grey.shade300, width: 1), // İnce çizgi
+                  color: Colors.grey.shade300,
+                  width: 1,
+                ),
               ),
             ),
             child: Column(
@@ -142,7 +232,7 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
                 Text(
                   isMeToFriend ? 'Borçluyum' : 'Borçlu',
                   style: TextStyle(
-                    fontSize: 10, // Daha küçük boyut
+                    fontSize: 10,
                     fontWeight: FontWeight.bold,
                     color: isMeToFriend ? Colors.red : Colors.green,
                   ),
@@ -168,6 +258,17 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
               ),
             ),
           ),
+          // Sadece borçlu olan kişi (me_to_friend + borrowerId = currentUser)
+          // “Borcu ödedim” butonunu görsün
+          if (isMeToFriend && data['borrowerId'] == _auth.currentUser?.uid)
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: IconButton(
+                icon: Icon(Icons.close, color: Colors.black),
+                onPressed: () => _confirmDebtPaid(context, docId, data),
+                tooltip: 'Borcu ödediğinizi bildir',
+              ),
+            ),
         ],
       ),
     );
@@ -277,8 +378,9 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
                   return ListView.builder(
                     itemCount: debts.length,
                     itemBuilder: (context, index) {
-                      final data = debts[index].data() as Map<String, dynamic>;
-                      return _buildDebtCard(data);
+                      final doc = debts[index];
+                      final data = doc.data() as Map<String, dynamic>;
+                      return _buildDebtCard(data, doc.id);
                     },
                   );
                 },
