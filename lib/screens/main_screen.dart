@@ -4,6 +4,8 @@ import 'package:teilen2/screens/friends_screen.dart';
 import 'settings_screen.dart';
 import 'group_expense_screen.dart';
 import 'notification_screen.dart'; // Bildirim ekranını import ettim
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class MainScreen extends StatefulWidget {
   @override
@@ -12,6 +14,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
+  bool _hasNotifications = false; // Yeni bildirim durumu
 
   final List<Widget> _pages = [
     IndividualDebtScreen(), // Bireysel Borç Takibi
@@ -19,6 +22,37 @@ class _MainScreenState extends State<MainScreen> {
     FriendsScreen(), // Arkadaşlarım (FriendsScreen olarak güncellendi)
     SettingsScreen(), // Ayarlar
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _checkNotifications();
+  }
+
+  void _checkNotifications() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      FirebaseFirestore.instance
+          .collection('notifications')
+          .where('toUser', isEqualTo: user.uid)
+          .where('status', isEqualTo: 'pending')
+          .snapshots()
+          .listen((snapshot) {
+        setState(() {
+          _hasNotifications = snapshot.docs.isNotEmpty;
+        });
+      });
+    }
+  }
+
+  void _onNotificationTapped() {
+    setState(() {
+      _hasNotifications = false; // Bildirime tıklandığında renk normale döner
+    });
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => NotificationScreen()),
+    );
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -30,17 +64,29 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.grey[850],
-        title: Text('Teilen'), // AppBar için başlık
+        backgroundColor: Colors.grey[900],
+        title: Row(
+          children: [
+            Icon(Icons.paid, color: Colors.tealAccent, size: 28),
+            SizedBox(width: 8),
+            Text(
+              'Teilen',
+              style: TextStyle(
+                color: Colors.tealAccent,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
+        ),
         actions: [
-          // Bildirim Butonu
           IconButton(
-            icon: Icon(Icons.notifications, color: Colors.white),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => NotificationScreen()),
-              );
-            },
+            icon: Icon(
+              Icons.notifications,
+              color: _hasNotifications ? Colors.yellow : Colors.tealAccent,
+            ),
+            onPressed: _onNotificationTapped,
           ),
         ],
       ),
@@ -48,7 +94,7 @@ class _MainScreenState extends State<MainScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
-        backgroundColor: Colors.grey[850], // Navigation bar rengini ayarla
+        backgroundColor: Colors.grey[900], // Navigation bar rengini ayarla
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.account_balance_wallet),
@@ -67,7 +113,7 @@ class _MainScreenState extends State<MainScreen> {
             label: 'Ayarlar',
           ),
         ],
-        selectedItemColor: Colors.white, // Seçili ikonun rengi
+        selectedItemColor: Colors.tealAccent, // Seçili ikonun rengi
         unselectedItemColor: Colors.white70, // Seçili olmayan ikonların rengi
         type: BottomNavigationBarType.fixed, // Düzgün görünmesi için sabit tür
       ),

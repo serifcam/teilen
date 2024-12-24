@@ -16,6 +16,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _email = '';
   String _password = '';
   String _name = '';
+  bool _isPasswordVisible = false; // Şifre görünürlüğünü kontrol eden değişken
 
   Future<void> _submitRegisterForm() async {
     try {
@@ -123,10 +124,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       prefixIcon: Icon(Icons.lock),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _isPasswordVisible
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                          color: Colors.black,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _isPasswordVisible = !_isPasswordVisible;
+                          });
+                        },
+                      ),
                       filled: true,
                       fillColor: Colors.white,
                     ),
-                    obscureText: true,
+                    obscureText: !_isPasswordVisible,
                     validator: (value) {
                       if (value == null || value.length < 6) {
                         return 'Şifre en az 6 karakter olmalı.';

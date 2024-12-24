@@ -52,11 +52,19 @@ class _GroupExpenseScreenState extends State<GroupExpenseScreen> {
   Future<void> _createGroup() async {
     final user = _auth.currentUser;
 
+    // Tüm alanların doldurulması ve en az 2 kişinin seçilmesi kontrolü
     if (_groupDescriptionController.text.isEmpty ||
         _selectedFriends.isEmpty ||
         _amountController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Tüm alanları doldurun!')),
+      );
+      return;
+    }
+
+    if (_selectedFriends.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Grup en az 3 kişi olmalıdır!')),
       );
       return;
     }

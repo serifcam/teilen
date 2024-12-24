@@ -68,7 +68,8 @@ class FriendRequestsScreen extends StatelessWidget {
                         : CircleAvatar(
                             child: Icon(Icons.person),
                           ),
-                    title: Text(senderData['email'] ?? ''),
+                    title: Text(senderData['name'] ?? 'Bilinmeyen İsim'),
+                    subtitle: Text(senderData['email'] ?? ''),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

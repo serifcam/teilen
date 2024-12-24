@@ -14,6 +14,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   String _email = '';
   String _password = '';
+  bool _isPasswordVisible = false; // Şifre görünürlüğü kontrolü için değişken
 
   Future<void> _submitLoginForm() async {
     try {
@@ -92,10 +93,23 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       prefixIcon: Icon(Icons.lock),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _isPasswordVisible
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                          color: Colors.black,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _isPasswordVisible = !_isPasswordVisible;
+                          });
+                        },
+                      ),
                       filled: true,
                       fillColor: Colors.white,
                     ),
-                    obscureText: true,
+                    obscureText: !_isPasswordVisible,
                     validator: (value) {
                       if (value == null || value.length < 6) {
                         return 'Şifre en az 6 karakter olmalı.';

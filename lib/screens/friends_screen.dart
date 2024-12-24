@@ -191,9 +191,11 @@ class _FriendsScreenState extends State<FriendsScreen> {
                               : CircleAvatar(
                                   child: Icon(Icons.person),
                                 ),
-                          title: Text(friendData['email'] ?? ''),
+                          title: Text(friendData['name'] ?? ''),
+                          subtitle: Text(friendData['email'] ?? ''),
                           trailing: IconButton(
-                            icon: Icon(Icons.delete, color: Colors.red),
+                            icon: Icon(Icons.person_remove_alt_1,
+                                color: Colors.red),
                             onPressed: () {
                               _confirmAndRemoveFriend(
                                   friendId, currentUser.uid);

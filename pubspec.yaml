@@ -37,7 +37,7 @@ dependencies:
   firebase_auth: ^5.3.4
   firebase_messaging: ^15.1.6
   provider: ^6.1.2
-  cloud_firestore: ^5.5.1
+  cloud_firestore: ^5.6.0
   flutter_local_notifications: ^18.0.1
   intl: ^0.20.1
 
@@ -50,6 +50,7 @@ dependencies:
   smooth_page_indicator: ^1.2.0+3
   lottie: ^3.3.0
   image_picker: ^1.1.2
+  loading_indicator: ^3.1.1
   
   #Setting
   flutter_profile_picture: ^2.0.0 # Temsili profil resmi
