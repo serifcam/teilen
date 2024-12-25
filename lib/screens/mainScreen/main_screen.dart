@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'individual_debt_screen.dart';
-import 'package:teilen2/screens/friends_screen.dart';
-import 'settings_screen.dart';
-import 'group_expense_screen.dart';
-import 'notification_screen.dart'; // Bildirim ekranını import ettim
+import 'package:teilen2/screens/settingScreen/settings_screen.dart';
+import '../individualScreen/individual_debt_screen.dart';
+import 'package:teilen2/screens/friendScreen/friends_screen.dart';
+import '../groupScreen/group_expense_screen.dart';
+import '../notificationScreen/notification_screen.dart'; // Bildirim ekranını import ettim
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 

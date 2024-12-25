@@ -1,44 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:teilen2/services/friend_request_service.dart';
 
 class FriendRequestsScreen extends StatelessWidget {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  void _updateRequestStatus(
-      String requestId, String status, String senderId) async {
-    final currentUser = _auth.currentUser;
-
-    await _firestore.collection('friendRequests').doc(requestId).update({
-      'status': status,
-    });
-
-    if (status == 'accepted') {
-      await _firestore.collection('users').doc(currentUser!.uid).update({
-        'friends': FieldValue.arrayUnion([senderId]),
-      });
-
-      await _firestore.collection('users').doc(senderId).update({
-        'friends': FieldValue.arrayUnion([currentUser.uid]),
-      });
-    }
-  }
+  final FriendRequestService _friendRequestService = FriendRequestService();
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = _auth.currentUser;
-
     return Scaffold(
       appBar: AppBar(
         title: Text('Arkadaşlık İstekleri'),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: _firestore
-            .collection('friendRequests')
-            .where('receiverId', isEqualTo: currentUser!.uid)
-            .where('status', isEqualTo: 'pending')
-            .snapshots(),
+        stream: _friendRequestService.getPendingFriendRequestsStream(),
         builder: (context, snapshot) {
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return Center(child: Text('Arkadaşlık isteği yok.'));
@@ -47,9 +21,8 @@ class FriendRequestsScreen extends StatelessWidget {
           return ListView(
             children: snapshot.data!.docs.map((doc) {
               final data = doc.data() as Map<String, dynamic>;
-              return FutureBuilder<DocumentSnapshot>(
-                future:
-                    _firestore.collection('users').doc(data['senderId']).get(),
+              return FutureBuilder<Map<String, dynamic>?>(
+                future: _friendRequestService.getUserData(data['senderId']),
                 builder: (ctx, userSnapshot) {
                   if (!userSnapshot.hasData) {
                     return ListTile(
@@ -57,8 +30,7 @@ class FriendRequestsScreen extends StatelessWidget {
                       subtitle: Text('Yükleniyor...'),
                     );
                   }
-                  final senderData =
-                      userSnapshot.data!.data() as Map<String, dynamic>;
+                  final senderData = userSnapshot.data!;
                   return ListTile(
                     leading: senderData['profileImageUrl'] != null
                         ? CircleAvatar(
@@ -75,13 +47,23 @@ class FriendRequestsScreen extends StatelessWidget {
                       children: [
                         IconButton(
                           icon: Icon(Icons.check, color: Colors.green),
-                          onPressed: () => _updateRequestStatus(
-                              doc.id, 'accepted', data['senderId']),
+                          onPressed: () {
+                            _friendRequestService.updateRequestStatus(
+                              requestId: doc.id,
+                              status: 'accepted',
+                              senderId: data['senderId'],
+                            );
+                          },
                         ),
                         IconButton(
                           icon: Icon(Icons.close, color: Colors.red),
-                          onPressed: () => _updateRequestStatus(
-                              doc.id, 'declined', data['senderId']),
+                          onPressed: () {
+                            _friendRequestService.updateRequestStatus(
+                              requestId: doc.id,
+                              status: 'declined',
+                              senderId: data['senderId'],
+                            );
+                          },
                         ),
                       ],
                     ),

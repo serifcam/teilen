@@ -1,10 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:loading_indicator/loading_indicator.dart';
+import 'package:teilen2/services/user_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -14,9 +12,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final UserService _userService = UserService();
 
   String? _profileImageUrl;
   String? _name;
@@ -29,102 +25,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _fetchUserData();
   }
 
+  /// Kullanıcı verilerini servis katmanından çeker
   Future<void> _fetchUserData() async {
-    final user = _auth.currentUser;
-    if (user == null) return;
-
-    try {
-      final doc = await _firestore.collection('users').doc(user.uid).get();
-      if (doc.exists) {
-        setState(() {
-          _profileImageUrl = doc['profileImageUrl'];
-          _name = doc['name'];
-          _email = doc['email'];
-        });
-      }
-    } catch (e) {
-      print('Kullanıcı verileri yüklenirken hata oluştu: $e');
+    final userData = await _userService.fetchUserData();
+    if (userData != null) {
+      setState(() {
+        _profileImageUrl = userData['profileImageUrl'];
+        _name = userData['name'];
+        _email = userData['email'];
+      });
     }
   }
 
+  /// Galeriden resim seçip, servis katmanı üzerinden yükler
   Future<void> _pickAndUploadImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-
     if (pickedFile == null) return;
 
-    final user = _auth.currentUser;
-    if (user == null) return;
-
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      await _deleteProfileImage();
-
-      final ref = _storage.ref().child('profile_images/${user.uid}.jpg');
-      await ref.putFile(File(pickedFile.path));
-
-      final url = await ref.getDownloadURL();
-
-      setState(() {
-        _profileImageUrl = url;
-        _isLoading = false;
-      });
-
-      await _firestore.collection('users').doc(user.uid).update({
-        'profileImageUrl': url,
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Profil resmi başarıyla değiştirildi!')),
-      );
+      final url = await _userService.uploadProfileImage(File(pickedFile.path));
+      if (url != null) {
+        setState(() {
+          _profileImageUrl = url;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Profil resmi başarıyla değiştirildi!')),
+        );
+      }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Resim değiştirilemedi: $e')),
       );
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
+  /// Mevcut profil resmini servis katmanından siler
   Future<void> _deleteProfileImage() async {
-    final user = _auth.currentUser;
-    if (user == null || _profileImageUrl == null) return;
-
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      final ref = _storage.ref().child('profile_images/${user.uid}.jpg');
-      await ref.delete();
-      await _firestore.collection('users').doc(user.uid).update({
-        'profileImageUrl': null,
-      });
-
-      setState(() {
-        _profileImageUrl = null;
-        _isLoading = false;
-      });
+      await _userService.deleteProfileImageOnStorage(forceDelete: true);
+      setState(() => _profileImageUrl = null);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Profil resmi başarıyla silindi!')),
       );
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Resim silinemedi: $e')),
       );
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
+  /// Kullanıcıya resim değiştirme veya silme seçeneklerini gösterir
   void _showImageOptions() {
     showModalBottomSheet(
       context: context,
@@ -152,9 +112,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _signOut(BuildContext context) async {
+  /// Kullanıcıyı çıkış yaptırır ve auth sayfasına yönlendirir
+  Future<void> _signOut(BuildContext context) async {
     try {
-      await FirebaseAuth.instance.signOut();
+      await _userService.signOutUser();
       Navigator.of(context).pushNamedAndRemoveUntil(
         '/auth',
         (Route<dynamic> route) => false,
@@ -174,6 +135,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       body: Column(
         children: [
+          // Profil Resmi ve Kullanıcı Bilgileri
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
@@ -183,7 +145,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: _showImageOptions,
                   child: CircleAvatar(
                     radius: 40,
-                    backgroundImage: !_isLoading && _profileImageUrl != null
+                    backgroundImage: (!_isLoading && _profileImageUrl != null)
                         ? NetworkImage(_profileImageUrl!)
                         : null,
                     child: _isLoading
@@ -229,6 +191,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           Divider(thickness: 1, color: Colors.grey),
           Spacer(),
+          // Çıkış Yap Butonu
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: ElevatedButton(
