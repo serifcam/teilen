@@ -51,6 +51,9 @@ dependencies:
   lottie: ^3.3.0
   image_picker: ^1.1.2
   loading_indicator: ^3.1.1
+
+  #Env
+  flutter_dotenv: ^5.2.1
   
   #Setting
   flutter_profile_picture: ^2.0.0 # Temsili profil resmi

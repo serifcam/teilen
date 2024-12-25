@@ -45,6 +45,18 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
       final receiverId = querySnapshot.docs.first.id;
 
+      // Arkadaşlık kontrolü
+      final currentUserDoc =
+          await _firestore.collection('users').doc(currentUser.uid).get();
+      List friends = currentUserDoc['friends'] ?? [];
+
+      if (friends.contains(receiverId)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Zaten bu kişiyle arkadaşsınız')),
+        );
+        return;
+      }
+
       await _firestore.collection('friendRequests').add({
         'senderId': currentUser.uid,
         'receiverId': receiverId,
