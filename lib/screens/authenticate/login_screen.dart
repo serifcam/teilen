@@ -25,6 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
         MaterialPageRoute(builder: (context) => MainScreen()),
       );
     } catch (error) {
+      // Kullanıcıya hata mesajı göster
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
