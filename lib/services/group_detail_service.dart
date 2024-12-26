@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class GroupDetailService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  // final FirebaseAuth _auth = FirebaseAuth.instance; // Eğer kullanmıyorsanız, yorum satırı ya da silin.
 
   /// Grup kurucusunun UID'sini getirir.
   Future<String?> fetchGroupCreator(String groupId) async {
