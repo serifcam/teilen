@@ -27,16 +27,7 @@ Flutter/flutter_export_environment.sh
 ServiceDefinitions.json
 Runner/GeneratedPluginRegistrant.*
 
-# Flutter ile ilgili varsayılan dosyalar
-build/
-.flutter-plugins
-.flutter-plugins-dependencies
-.packages
-pubspec.lock
 
-# Firebase yapılandırma dosyaları
-android/app/google-services.json
-ios/Runner/GoogleService-Info.plist
 
 # Exceptions to above rules.
 !default.mode1v3
