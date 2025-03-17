@@ -16,8 +16,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _password = '';
   String _name = '';
   bool _isPasswordVisible = false;
+  bool _isLoading = false;
+
+  // E-posta validasyonu için regex
+  bool _isEmailValid(String email) {
+    RegExp regex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+    return regex.hasMatch(email);
+  }
 
   Future<void> _submitRegisterForm() async {
+    if (!_formKey.currentState!.validate()) return;
+    _formKey.currentState!.save();
+    setState(() {
+      _isLoading = true;
+    });
     try {
       // Kullanıcı kaydı
       final userCredential = await AuthService().register(_email, _password);
@@ -42,7 +54,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         MaterialPageRoute(builder: (context) => LoginScreen()),
       );
     } on FirebaseAuthException catch (e) {
-      // Firebase hata kodlarına göre mesaj göster
       String errorMessage;
       if (e.code == 'email-already-in-use') {
         errorMessage =
@@ -59,106 +70,117 @@ class _RegisterScreenState extends State<RegisterScreen> {
         SnackBar(content: Text(errorMessage)),
       );
     } catch (error) {
-      // Beklenmeyen hatalar için genel mesaj
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Beklenmeyen bir hata oluştu: $error')),
       );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: AuthForm(
-        formKey: _formKey,
-        title: 'Kayıt Ol',
-        fields: [
-          TextFormField(
-            decoration: InputDecoration(
-              labelText: 'Ad Soyad',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              prefixIcon: const Icon(Icons.person),
-              filled: true,
-              fillColor: Colors.white,
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Lütfen adınızı girin.';
-              }
-              return null;
-            },
-            onSaved: (value) => _name = value!,
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            decoration: InputDecoration(
-              labelText: 'E-Posta',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              prefixIcon: const Icon(Icons.email),
-              filled: true,
-              fillColor: Colors.white,
-            ),
-            keyboardType: TextInputType.emailAddress,
-            validator: (value) {
-              if (value == null || !value.contains('@')) {
-                return 'Geçerli bir e-posta adresi girin.';
-              }
-              return null;
-            },
-            onSaved: (value) => _email = value!,
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            decoration: InputDecoration(
-              labelText: 'Şifre',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              prefixIcon: const Icon(Icons.lock),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                  color: Colors.black,
+      body: Stack(
+        children: [
+          AuthForm(
+            formKey: _formKey,
+            title: 'Kayıt Ol',
+            fields: [
+              TextFormField(
+                decoration: InputDecoration(
+                  labelText: 'Ad Soyad',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  prefixIcon: const Icon(Icons.person),
+                  filled: true,
+                  fillColor: Colors.white,
                 ),
-                onPressed: () {
-                  setState(() {
-                    _isPasswordVisible = !_isPasswordVisible;
-                  });
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Lütfen adınızı girin.';
+                  }
+                  return null;
                 },
+                onSaved: (value) => _name = value!.trim(),
               ),
-              filled: true,
-              fillColor: Colors.white,
+              const SizedBox(height: 16),
+              TextFormField(
+                decoration: InputDecoration(
+                  labelText: 'E-Posta',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  prefixIcon: const Icon(Icons.email),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value == null || !_isEmailValid(value.trim())) {
+                    return 'Geçerli bir e-posta adresi girin.';
+                  }
+                  return null;
+                },
+                onSaved: (value) => _email = value!.trim(),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                decoration: InputDecoration(
+                  labelText: 'Şifre',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  prefixIcon: const Icon(Icons.lock),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _isPasswordVisible
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                      color: Colors.black,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _isPasswordVisible = !_isPasswordVisible;
+                      });
+                    },
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                obscureText: !_isPasswordVisible,
+                validator: (value) {
+                  if (value == null || value.length < 6) {
+                    return 'Şifre en az 6 karakter olmalı.';
+                  }
+                  return null;
+                },
+                onSaved: (value) => _password = value!,
+              ),
+            ],
+            submitButtonText: 'Kayıt Ol',
+            onSubmit: _submitRegisterForm,
+            alternateAction: TextButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+              ),
+              child: const Text(
+                'Hesabınız var mı? Giriş yapın.',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
-            obscureText: !_isPasswordVisible,
-            validator: (value) {
-              if (value == null || value.length < 6) {
-                return 'Şifre en az 6 karakter olmalı.';
-              }
-              return null;
-            },
-            onSaved: (value) => _password = value!,
           ),
+          if (_isLoading)
+            Container(
+              color: Colors.black.withOpacity(0.5),
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
         ],
-        submitButtonText: 'Kayıt Ol',
-        onSubmit: () {
-          if (_formKey.currentState!.validate()) {
-            _formKey.currentState!.save();
-            _submitRegisterForm();
-          }
-        },
-        alternateAction: TextButton(
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => LoginScreen()),
-          ),
-          child: const Text(
-            'Hesabınız var mı? Giriş yapın.',
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
       ),
     );
   }
