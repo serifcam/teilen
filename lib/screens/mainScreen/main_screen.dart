@@ -6,6 +6,7 @@ import '../groupScreen/group_expense_screen.dart';
 import '../notificationScreen/notification_screen.dart'; // Bildirim ekranını import ettim
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart'; // 🔥 FCM eklendi
 
 class MainScreen extends StatefulWidget {
   @override
@@ -19,7 +20,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _pages = [
     IndividualDebtScreen(), // Bireysel Borç Takibi
     GroupExpenseScreen(), // Grup Harcamaları
-    FriendsScreen(), // Arkadaşlarım (FriendsScreen olarak güncellendi)
+    FriendsScreen(), // Arkadaşlarım
     SettingsScreen(), // Ayarlar
   ];
 
@@ -27,6 +28,22 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _checkNotifications();
+    _registerFcmToken(); // ✅ Token'ı Firestore'a kaydet
+  }
+
+  // 🔐 FCM token'ı al ve Firestore'a kaydet
+  void _registerFcmToken() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({'fcmToken': token});
+        print('📬 Token Firestore\'a kaydedildi: $token');
+      }
+    }
   }
 
   void _checkNotifications() {
@@ -47,7 +64,7 @@ class _MainScreenState extends State<MainScreen> {
 
   void _onNotificationTapped() {
     setState(() {
-      _hasNotifications = false; // Bildirime tıklandığında renk normale döner
+      _hasNotifications = false;
     });
     Navigator.of(context).push(
       MaterialPageRoute(builder: (context) => NotificationScreen()),
@@ -94,7 +111,7 @@ class _MainScreenState extends State<MainScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
-        backgroundColor: Colors.grey[900], // Navigation bar rengini ayarla
+        backgroundColor: Colors.grey[900],
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.account_balance_wallet),
@@ -113,9 +130,9 @@ class _MainScreenState extends State<MainScreen> {
             label: 'Ayarlar',
           ),
         ],
-        selectedItemColor: Colors.tealAccent, // Seçili ikonun rengi
-        unselectedItemColor: Colors.white70, // Seçili olmayan ikonların rengi
-        type: BottomNavigationBarType.fixed, // Düzgün görünmesi için sabit tür
+        selectedItemColor: Colors.tealAccent,
+        unselectedItemColor: Colors.white70,
+        type: BottomNavigationBarType.fixed,
       ),
     );
   }

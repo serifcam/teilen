@@ -12,15 +12,23 @@ class _FriendsScreenState extends State<FriendsScreen> {
   final FriendService _friendService = FriendService();
 
   Future<void> _sendFriendRequest() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lütfen bir e-posta adresi girin.')),
+      );
+      return;
+    }
+
     try {
-      await _friendService.sendFriendRequest(_emailController.text);
+      await _friendService.sendFriendRequest(email);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Arkadaşlık isteği gönderildi!')),
       );
       _emailController.clear();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Hata: $e')),
+        SnackBar(content: Text('Hata: ${e.toString()}')),
       );
     }
   }
@@ -53,7 +61,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Arkadaş silinirken hata oluştu!')),
+          SnackBar(
+              content: Text('Arkadaş silinirken hata oluştu: ${e.toString()}')),
         );
       }
     }
@@ -68,7 +77,6 @@ class _FriendsScreenState extends State<FriendsScreen> {
           IconButton(
             icon: Icon(Icons.person_add),
             onPressed: () {
-              // Arkadaşlık İstekleri Ekranı
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => FriendRequestsScreen(),
@@ -105,15 +113,15 @@ class _FriendsScreenState extends State<FriendsScreen> {
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: _friendService.getFriendsStream(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return Center(child: CircularProgressIndicator());
                 }
 
-                final friends = snapshot.data!;
-
-                if (friends.isEmpty) {
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return Center(child: Text('Henüz arkadaşınız yok.'));
                 }
+
+                final friends = snapshot.data!;
 
                 return ListView.builder(
                   itemCount: friends.length,

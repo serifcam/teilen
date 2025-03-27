@@ -28,6 +28,19 @@ class FriendService {
 
     final receiverId = querySnapshot.docs.first.id;
 
+    // ❌ Daha önce arkadaşlık isteği gönderilmiş mi kontrol et
+    final existingRequest = await _firestore
+        .collection('friendRequests')
+        .where('senderId', isEqualTo: currentUser.uid)
+        .where('receiverId', isEqualTo: receiverId)
+        .where('status', isEqualTo: 'pending')
+        .get();
+
+    if (existingRequest.docs.isNotEmpty) {
+      throw Exception('Zaten bu kullanıcıya arkadaşlık isteği gönderdiniz.');
+    }
+
+    // ✅ Zaten arkadaş mı kontrolü
     final currentUserDoc =
         await _firestore.collection('users').doc(currentUser.uid).get();
     List friends = currentUserDoc['friends'] ?? [];
@@ -36,6 +49,7 @@ class FriendService {
       throw Exception('Zaten bu kişiyle arkadaşsınız.');
     }
 
+    // ✅ Yeni istek gönder
     await _firestore.collection('friendRequests').add({
       'senderId': currentUser.uid,
       'receiverId': receiverId,
