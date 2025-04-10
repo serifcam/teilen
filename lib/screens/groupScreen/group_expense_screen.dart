@@ -92,7 +92,7 @@ class _GroupExpenseScreenState extends State<GroupExpenseScreen> {
       elevation: 3,
       margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       child: ListTile(
-        leading: Icon(Icons.group, color: Colors.teal),
+        leading: Icon(Icons.groups, color: Colors.blue),
         title: Text(groupData['groupName'] ?? 'Grup İsmi Yok'),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

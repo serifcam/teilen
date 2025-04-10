@@ -9,12 +9,9 @@ class NotificationService {
     required String status,
     required Map<String, dynamic> data,
   }) async {
-    await _firestore.collection('notifications').doc(notificationId).update({
-      'status': status,
-    });
-
     if (status == 'approved') {
       if (data['type'] == null || data['type'] == 'newDebt') {
+        // Bireysel borç ekleme işlemi
         String borrowerId = data['relation'] == 'friend_to_me'
             ? data['toUser']
             : data['fromUser'];
@@ -47,6 +44,7 @@ class NotificationService {
           'createdAt': Timestamp.now(),
         });
       } else if (data['type'] == 'debtPaid') {
+        // Borç ödeme işlemi: ilgili dokümanları sil
         String? borrowerDebtDocId = data['borrowerDebtDocId'];
         String? creditorDebtDocId = data['creditorDebtDocId'];
 
@@ -63,7 +61,21 @@ class NotificationService {
               .doc(creditorDebtDocId)
               .delete();
         }
+      } else if (data['type'] == 'groupDebt') {
+        // Grup borcu bildirimi onaylandı → sadece bildirimi sil
+        print("Group debt bildirimi onaylandı: $notificationId");
       }
+
+      // Bildirimi sil
+      await _firestore.collection('notifications').doc(notificationId).delete();
+    } else if (status == 'rejected') {
+      // Reddedildiyse bildirimi sil
+      await _firestore.collection('notifications').doc(notificationId).delete();
+    } else {
+      // Diğer statü durumları varsa sadece güncelle
+      await _firestore.collection('notifications').doc(notificationId).update({
+        'status': status,
+      });
     }
   }
 

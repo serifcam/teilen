@@ -39,27 +39,80 @@ class NotificationScreen extends StatelessWidget {
               final type = data['type'] ?? 'newDebt';
 
               String message = '';
+              Widget leadingIcon = Icon(Icons.person); // Varsayılan ikon
+
               if (type == 'newDebt') {
+                leadingIcon = Icon(Icons.person, color: Colors.teal);
                 if (data['relation'] == 'me_to_friend') {
                   message =
-                      "${data['fromUserEmail'] ?? "Bilinmeyen Kullanıcı"} size ${data['amount'] ?? 0} TL borç ekledi.";
+                      "${data['fromUserEmail'] ?? "Bilinmeyen Kullanıcı"} size "
+                      "<b>${data['amount'] ?? 0} TL</b> borç ekledi.";
                 } else {
                   message =
-                      "Siz ${data['toUserEmail'] ?? "Bilinmeyen Kullanıcı"} kişisine ${data['amount'] ?? 0} TL borç eklediniz.";
+                      "Siz ${data['toUserEmail'] ?? "Bilinmeyen Kullanıcı"} kişisine "
+                      "<b>${data['amount'] ?? 0} TL</b> borç eklediniz.";
                 }
               } else if (type == 'debtPaid') {
                 final fromUserEmail =
                     data['fromUserEmail'] ?? 'Bilinmeyen Kullanıcı';
                 final amount = data['amount'] ?? 0;
-                message = "$fromUserEmail, $amount TL borcunu ödemiştir.";
+                message =
+                    "$fromUserEmail, <b>$amount TL</b> borcunu ödemiştir.";
+                leadingIcon = Icon(Icons.attach_money, color: Colors.orange);
+              } else if (type == 'groupDebt') {
+                final fromUserEmail =
+                    data['fromUserEmail'] ?? 'Bilinmeyen Kullanıcı';
+                final amount = data['amount'] ?? 0;
+                message =
+                    "$fromUserEmail, size <b>$amount TL</b> grup borcu ekledi.";
+                leadingIcon = Icon(Icons.groups, color: Colors.blue);
+              }
+
+              // Miktarı yeşil renkle vurgulamak için metin parçalama
+              final amountRegExp = RegExp(r'(<b>)(.*?)(</b>)');
+              final spans = <TextSpan>[];
+              final matches = amountRegExp.allMatches(message);
+
+              int lastIndex = 0;
+              for (final match in matches) {
+                final normalText = message.substring(lastIndex, match.start);
+                final highlightedText = match.group(2)!;
+
+                spans.add(TextSpan(text: normalText));
+                spans.add(
+                  TextSpan(
+                    text: highlightedText,
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                );
+
+                lastIndex = match.end;
+              }
+
+              // Kalan metni ekle
+              if (lastIndex < message.length) {
+                spans.add(TextSpan(text: message.substring(lastIndex)));
               }
 
               return Card(
                 margin: EdgeInsets.all(8.0),
                 child: ListTile(
-                  title: Text(message),
+                  leading: leadingIcon,
+                  title: RichText(
+                    text: TextSpan(
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 14,
+                      ),
+                      children: spans,
+                    ),
+                  ),
                   subtitle: Text(
                     'Açıklama: ${data['description'] ?? "Açıklama yok"}',
+                    style: TextStyle(color: Colors.grey[700]),
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,

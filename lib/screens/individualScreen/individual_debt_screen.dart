@@ -128,7 +128,7 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
         children: [
           // Sol taraftaki ikon
           Container(
-            width: 80,
+            width: 60,
             decoration: BoxDecoration(
               border: Border(
                 right: BorderSide(
@@ -148,7 +148,7 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
                 Text(
                   isMeToFriend ? 'Borçluyum' : 'Borçlu',
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 9,
                     fontWeight: FontWeight.bold,
                     color: isMeToFriend ? Colors.red : Colors.green,
                   ),
@@ -164,12 +164,12 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Kişi: ${data['friendEmail']}'),
+                  Text('${data['friendEmail']}'),
                   Text('Açıklama: ${data['description']}'),
                   Text('Borç: ${data['amount']} TL'),
                   Text(
                     'Tarih: $formattedDate',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    style: TextStyle(fontSize: 10, color: Colors.grey[700]),
                   ),
                 ],
               ),

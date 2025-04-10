@@ -25,7 +25,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _fetchUserData();
   }
 
-  /// Kullanıcı verilerini servis katmanından çeker
   Future<void> _fetchUserData() async {
     final userData = await _userService.fetchUserData();
     if (userData != null) {
@@ -37,7 +36,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  /// Galeriden resim seçip, servis katmanı üzerinden yükler
   Future<void> _pickAndUploadImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
@@ -48,9 +46,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final url = await _userService.uploadProfileImage(File(pickedFile.path));
       if (url != null) {
-        setState(() {
-          _profileImageUrl = url;
-        });
+        setState(() => _profileImageUrl = url);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Profil resmi başarıyla değiştirildi!')),
         );
@@ -64,14 +60,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  /// Mevcut profil resmini servis katmanından siler
   Future<void> _deleteProfileImage() async {
     setState(() => _isLoading = true);
 
     try {
       await _userService.deleteProfileImageOnStorage(forceDelete: true);
       setState(() => _profileImageUrl = null);
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Profil resmi başarıyla silindi!')),
       );
@@ -84,7 +78,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  /// Kullanıcıya resim değiştirme veya silme seçeneklerini gösterir
   void _showImageOptions() {
     showModalBottomSheet(
       context: context,
@@ -112,7 +105,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  /// Kullanıcıyı çıkış yaptırır ve auth sayfasına yönlendirir
   Future<void> _signOut(BuildContext context) async {
     try {
       await _userService.signOutUser();
@@ -130,12 +122,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Hesap Ayarları'),
-      ),
+      appBar: AppBar(title: Text('Hesap Ayarları')),
       body: Column(
         children: [
-          // Profil Resmi ve Kullanıcı Bilgileri
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
@@ -172,17 +161,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Text(
                         _name!,
                         style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                            fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     if (_email != null)
                       Text(
                         _email!,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.grey),
                       ),
                   ],
                 ),
@@ -190,8 +174,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           Divider(thickness: 1, color: Colors.grey),
+
+          /// ✅ Bildirim Ayarları Seçeneği
+          ListTile(
+            leading: Icon(Icons.notifications_active, color: Colors.teal),
+            title: Text(
+              'Bildirim Ayarları',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
+            trailing: Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {
+              Navigator.of(context).pushNamed('/notification-settings');
+            },
+          ),
+
           Spacer(),
-          // Çıkış Yap Butonu
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: ElevatedButton(
@@ -213,10 +210,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   SizedBox(width: 8),
                   Text(
                     'Çıkış Yap',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),

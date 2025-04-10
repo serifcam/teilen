@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:teilen2/screens/authenticate/login_screen.dart';
 import 'package:teilen2/screens/settingScreen/settings_screen.dart';
+import 'package:teilen2/screens/settingScreen/notification_settings_screen.dart'; // ✅ Yeni ekran
 import 'package:teilen2/screens/mainScreen/main_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -36,7 +37,6 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _initFirebaseMessaging() async {
-    // 🔒 Bildirim izni al (özellikle iOS ve Android 13+ için)
     NotificationSettings settings = await _firebaseMessaging.requestPermission(
       alert: true,
       badge: true,
@@ -46,27 +46,29 @@ class _MyAppState extends State<MyApp> {
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
       print('📱 Bildirim izni verildi');
 
-      // ✅ FCM Token'ı al
       String? token = await _firebaseMessaging.getToken();
       print('📬 Kullanıcı FCM Token: $token');
 
-      // 🔄 Giriş yapmış kullanıcı varsa token'ı Firestore'a kaydet
       User? user = FirebaseAuth.instance.currentUser;
       if (user != null && token != null) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .update({'fcmToken': token});
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'fcmToken': token,
+          'notificationsEnabled': true, // ✅ Ana bildirim durumu
+          'individualDebtEnabled': true, // ✅ Alt ayarlar
+          'groupDebtEnabled': true,
+          'debtPaid': true,
+          'friendRequestEnabled': true,
+        }, SetOptions(merge: true));
       }
 
-      // 🟢 Uygulama açıkken gelen mesajları dinle
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         print('📥 Foreground mesaj: ${message.notification?.title}');
-
         if (message.notification != null) {
           final snackBar = SnackBar(
             content: Text(
-                '${message.notification!.title ?? 'Bildirim'} - ${message.notification!.body ?? ''}'),
+              '${message.notification!.title ?? 'Bildirim'} - '
+              '${message.notification!.body ?? ''}',
+            ),
             duration: Duration(seconds: 5),
           );
           ScaffoldMessenger.of(context).showSnackBar(snackBar);
@@ -89,6 +91,7 @@ class _MyAppState extends State<MyApp> {
         '/auth': (context) => LoginScreen(),
         '/main': (context) => MainScreen(),
         '/settings': (context) => SettingsScreen(),
+        '/notification-settings': (context) => NotificationSettingsScreen(),
       },
     );
   }

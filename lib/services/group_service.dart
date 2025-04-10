@@ -28,28 +28,26 @@ class GroupService {
     }).toList();
   }
 
-  /// Yeni bir grup oluşturur ve ilgili borç kayıtlarını ekler
+  /// Yeni bir grup oluşturur ve ilgili borç kayıtlarını ve bildirimleri ekler
   Future<void> createGroup({
     required String groupDescription,
     required double totalAmount,
     required List<String> selectedFriendsUids,
   }) async {
     final user = _auth.currentUser;
-    if (user == null) {
-      throw Exception('Kullanıcı oturum açmamış.');
-    }
+    if (user == null) throw Exception('Kullanıcı oturum açmamış.');
 
-    // Grup en az 3 kişi olmalı: (kullanıcı + en az 2 arkadaş)
     if (selectedFriendsUids.length < 2) {
       throw Exception('Grup en az 3 kişi olmalıdır!');
     }
 
     final userUid = user.uid;
+    final userEmail = user.email ?? 'Bilinmeyen';
     final allMembers = [...selectedFriendsUids, userUid];
-    double splitAmount = totalAmount / allMembers.length;
+    final splitAmount = totalAmount / allMembers.length;
 
     try {
-      // 1) Grup dokümanı ekle
+      // 1. Grup oluştur
       DocumentReference groupRef = await _firestore.collection('groups').add({
         'groupName': groupDescription,
         'createdBy': userUid,
@@ -57,22 +55,39 @@ class GroupService {
         'createdAt': Timestamp.now(),
       });
 
-      print('Grup oluşturuldu: ${groupRef.id}');
+      print("✅ Grup oluşturuldu: ${groupRef.id}");
 
-      // 2) Her bir üye için borç dokümanı ekle
+      // 2. Grup borçlarını ve bildirimleri ekle
       for (var memberId in allMembers) {
-        DocumentReference debtRef = await _firestore.collection('debts').add({
+        await _firestore.collection('debts').add({
           'groupId': groupRef.id,
           'fromUser': memberId,
           'toUser': userUid,
           'amount': splitAmount,
           'status': 'pending',
         });
-        print('Borç oluşturuldu: ${debtRef.id}');
+
+        print("➕ Borç eklendi: $memberId → $userUid ($splitAmount TL)");
+
+        if (memberId != userUid) {
+          await _firestore.collection('notifications').add({
+            'type': 'groupDebt',
+            'toUser': memberId,
+            'fromUser': userUid,
+            'fromUserEmail': userEmail,
+            'amount': splitAmount,
+            'groupName': groupDescription,
+            'description': groupDescription, // ✅ Burada düzeltildi
+            'status': 'pending',
+            'createdAt': Timestamp.now(),
+          });
+
+          print("🔔 Bildirim gönderildi → toUser: $memberId");
+        }
       }
     } catch (e) {
-      print('Grup oluşturma hatası: $e');
-      throw e;
+      print('❌ Grup oluşturma hatası: $e');
+      throw Exception('Grup oluşturulurken hata oluştu: $e');
     }
   }
 
