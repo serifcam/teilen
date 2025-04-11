@@ -32,11 +32,11 @@ class _NotificationSettingsScreenState
       final doc = await _firestore.collection('users').doc(user.uid).get();
       final data = doc.data();
       setState(() {
-        _notificationsEnabled = data?['notificationsEnabled'] ?? true;
-        _individualDebtEnabled = data?['individualDebtEnabled'] ?? true;
-        _groupDebtEnabled = data?['groupDebtEnabled'] ?? true;
-        _friendRequestEnabled = data?['friendRequestEnabled'] ?? true;
-        _debtPaidEnabled = data?['debtPaidEnabled'] ?? true; // ✅ EKLENDİ
+        _notificationsEnabled = data?['XnotificationsEnabled'] ?? true;
+        _individualDebtEnabled = data?['XindividualDebtEnabled'] ?? true;
+        _groupDebtEnabled = data?['XgroupDebtEnabled'] ?? true;
+        _friendRequestEnabled = data?['XfriendRequestEnabled'] ?? true;
+        _debtPaidEnabled = data?['XdebtPaidEnabled'] ?? true; // ✅ EKLENDİ
         _isLoading = false;
       });
     }
@@ -46,11 +46,11 @@ class _NotificationSettingsScreenState
     final user = _auth.currentUser;
     if (user != null) {
       await _firestore.collection('users').doc(user.uid).update({
-        'notificationsEnabled': _notificationsEnabled,
-        'individualDebtEnabled': _individualDebtEnabled,
-        'groupDebtEnabled': _groupDebtEnabled,
-        'friendRequestEnabled': _friendRequestEnabled,
-        'debtPaidEnabled': _debtPaidEnabled, // ✅ EKLENDİ
+        'XnotificationsEnabled': _notificationsEnabled,
+        'XindividualDebtEnabled': _individualDebtEnabled,
+        'XgroupDebtEnabled': _groupDebtEnabled,
+        'XfriendRequestEnabled': _friendRequestEnabled,
+        'XdebtPaidEnabled': _debtPaidEnabled, // ✅ EKLENDİ
       });
     }
   }
@@ -58,12 +58,10 @@ class _NotificationSettingsScreenState
   void _toggleMasterSwitch(bool value) {
     setState(() {
       _notificationsEnabled = value;
-      if (!value) {
-        _individualDebtEnabled = false;
-        _groupDebtEnabled = false;
-        _friendRequestEnabled = false;
-        _debtPaidEnabled = false; // ✅ EKLENDİ
-      }
+      _individualDebtEnabled = value;
+      _groupDebtEnabled = value;
+      _friendRequestEnabled = value;
+      _debtPaidEnabled = value;
     });
     _updateSettingsOnFirestore();
   }

@@ -67,8 +67,17 @@ class UserService {
     });
   }
 
-  /// Firebase Auth üzerinden kullanıcıyı çıkış yaptırır.
+  /// Firebase Auth üzerinden kullanıcıyı çıkış yaptırır, tokeni siler.
   Future<void> signOutUser() async {
-    await _auth.signOut();
+    final user = _auth.currentUser;
+
+    if (user != null) {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({'fcmToken': FieldValue.delete()}); // 🔥 Token silinir
+    }
+
+    await _auth.signOut(); // 🔒 Oturum kapatılır
   }
 }

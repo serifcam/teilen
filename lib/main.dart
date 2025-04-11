@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:teilen2/screens/authenticate/login_screen.dart';
 import 'package:teilen2/screens/settingScreen/settings_screen.dart';
-import 'package:teilen2/screens/settingScreen/notification_settings_screen.dart'; // ✅ Yeni ekran
+import 'package:teilen2/screens/settingScreen/notification_settings_screen.dart';
 import 'package:teilen2/screens/mainScreen/main_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -53,11 +53,11 @@ class _MyAppState extends State<MyApp> {
       if (user != null && token != null) {
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'fcmToken': token,
-          'notificationsEnabled': true, // ✅ Ana bildirim durumu
-          'individualDebtEnabled': true, // ✅ Alt ayarlar
-          'groupDebtEnabled': true,
-          'debtPaid': true,
-          'friendRequestEnabled': true,
+          'notificationsEnabled': true, // ✅ Genel bildirim
+          'individualDebtEnabled': true, // ✅ Bireysel borç
+          'groupDebtEnabled': true, // ✅ Grup borcu
+          'friendRequestEnabled': true, // ✅ Arkadaşlık isteği
+          'debtPaidEnabled': true, // ✅ Borç ödendi bildirimi
         }, SetOptions(merge: true));
       }
 

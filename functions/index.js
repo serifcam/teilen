@@ -26,10 +26,10 @@ exports.sendFriendRequestNotification = onDocumentCreated(
     const receiverData = receiverDoc.exists ? receiverDoc.data() : {};
     const fcmToken = receiverData.fcmToken || null;
 
-    const notificationsEnabled = receiverData.notificationsEnabled !== false;
-    const friendRequestEnabled = receiverData.friendRequestEnabled !== false;
+    const XnotificationsEnabled = receiverData.XnotificationsEnabled !== false;
+    const XfriendRequestEnabled = receiverData.XfriendRequestEnabled !== false;
 
-    if (!fcmToken || !notificationsEnabled || !friendRequestEnabled) {
+    if (!fcmToken || !XnotificationsEnabled || !XfriendRequestEnabled) {
       return logger.info('🔕 Arkadaşlık bildirimi gönderilmedi (token yok veya kullanıcı bu bildirimi kapatmış).');
     }
 
@@ -69,12 +69,12 @@ exports.sendDebtNotification = onDocumentCreated(
     const receiverData = receiverDoc.exists ? receiverDoc.data() : {};
     const fcmToken = receiverData.fcmToken || null;
 
-    const notificationsEnabled = receiverData.notificationsEnabled !== false;
-    const individualDebtEnabled = receiverData.individualDebtEnabled !== false;
-    const groupDebtEnabled = receiverData.groupDebtEnabled !== false;
-    const debtPaidEnabled = receiverData.debtPaidEnabled !== false;
+    const XnotificationsEnabled = receiverData.XnotificationsEnabled !== false;
+    const XindividualDebtEnabled = receiverData.XindividualDebtEnabled !== false;
+    const XgroupDebtEnabled = receiverData.XgroupDebtEnabled !== false;
+    const XdebtPaidEnabled = receiverData.XdebtPaidEnabled !== false;
 
-    if (!fcmToken || !notificationsEnabled) {
+    if (!fcmToken || !XnotificationsEnabled) {
       return logger.info('🔕 Bildirim gönderilmedi (token yok veya genel bildirim kapalı).');
     }
 
@@ -82,17 +82,17 @@ exports.sendDebtNotification = onDocumentCreated(
     let body = '';
 
     if (type === 'newDebt') {
-      if (!individualDebtEnabled) {
+      if (!XindividualDebtEnabled) {
         return logger.info('🔕 Bireysel borç bildirimi kapalı.');
       }
       body = `${fromUserEmail} size ${amount} TL borç eklemiştir.`;
     } else if (type === 'groupDebt') {
-      if (!groupDebtEnabled) {
+      if (!XgroupDebtEnabled) {
         return logger.info('🔕 Grup borç bildirimi kapalı.');
       }
       body = `${fromUserEmail} size ${amount} TL grup borcu eklemiştir.`;
     } else if (type === 'debtPaid') {
-      if (!debtPaidEnabled) {
+      if (!XdebtPaidEnabled) {
         return logger.info('🔕 Borç ödendi bildirimi kapalı.');
       }
       title = 'Borç Ödendi Onayı Bekliyor';

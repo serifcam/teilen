@@ -37,11 +37,36 @@ class _MainScreenState extends State<MainScreen> {
     if (user != null) {
       final token = await FirebaseMessaging.instance.getToken();
       if (token != null) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .update({'fcmToken': token});
-        print('📬 Token Firestore\'a kaydedildi: $token');
+        final userRef =
+            FirebaseFirestore.instance.collection('users').doc(user.uid);
+
+        final doc = await userRef.get();
+        final existingData = doc.data() ?? {};
+
+        // Eğer alanlar daha önce kaydedilmemişse varsayılan değerlerle ekle
+        await userRef.set({
+          'fcmToken': token,
+          'notificationsEnabled':
+              existingData.containsKey('notificationsEnabled')
+                  ? existingData['notificationsEnabled']
+                  : true,
+          'individualDebtEnabled':
+              existingData.containsKey('individualDebtEnabled')
+                  ? existingData['individualDebtEnabled']
+                  : true,
+          'groupDebtEnabled': existingData.containsKey('groupDebtEnabled')
+              ? existingData['groupDebtEnabled']
+              : true,
+          'friendRequestEnabled':
+              existingData.containsKey('friendRequestEnabled')
+                  ? existingData['friendRequestEnabled']
+                  : true,
+          'debtPaidEnabled': existingData.containsKey('debtPaidEnabled')
+              ? existingData['debtPaidEnabled']
+              : true,
+        }, SetOptions(merge: true));
+
+        print('📬 Tüm bildirim ayarları ve token Firestore\'a kaydedildi');
       }
     }
   }
