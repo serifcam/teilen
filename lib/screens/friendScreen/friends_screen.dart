@@ -13,6 +13,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   Future<void> _sendFriendRequest() async {
     final email = _emailController.text.trim();
+
     if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Lütfen bir e-posta adresi girin.')),
@@ -25,14 +26,17 @@ class _FriendsScreenState extends State<FriendsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Arkadaşlık isteği gönderildi!')),
       );
+
       _emailController.clear();
     } catch (e) {
+      // Hata oluşursa kullanıcıya bildir
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Hata: ${e.toString()}')),
       );
     }
   }
 
+  /// Arkadaş silme işlemi öncesinde kullanıcıya onay sor
   Future<void> _confirmAndRemoveFriend(String friendId) async {
     final result = await showDialog<bool>(
       context: context,
@@ -53,6 +57,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
       ),
     );
 
+    // Kullanıcı onay verdiyse silme işlemi yapılır
     if (result == true) {
       try {
         await _friendService.removeFriend(friendId);
@@ -68,12 +73,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
     }
   }
 
+  /// Ana widget arayüzü
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Arkadaşlarım'),
         actions: [
+          // Sağ üst köşede arkadaşlık isteklerine gitmek için buton
           IconButton(
             icon: Icon(Icons.person_add),
             onPressed: () {
@@ -88,6 +95,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
       ),
       body: Column(
         children: [
+          // Arkadaşlık isteği gönderme alanı
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -109,6 +117,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
               ],
             ),
           ),
+
+          // Arkadaş listesi - gerçek zamanlı olarak güncellenir
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: _friendService.getFriendsStream(),
@@ -123,6 +133,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
                 final friends = snapshot.data!;
 
+                // Arkadaşları listeleme
                 return ListView.builder(
                   itemCount: friends.length,
                   itemBuilder: (ctx, index) {

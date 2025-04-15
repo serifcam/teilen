@@ -16,7 +16,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-
+// Uygulama kapalıyken bildirim göndermeye yarar
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   runApp(MyApp());
@@ -53,11 +53,11 @@ class _MyAppState extends State<MyApp> {
       if (user != null && token != null) {
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'fcmToken': token,
-          'notificationsEnabled': true, // ✅ Genel bildirim
-          'individualDebtEnabled': true, // ✅ Bireysel borç
-          'groupDebtEnabled': true, // ✅ Grup borcu
-          'friendRequestEnabled': true, // ✅ Arkadaşlık isteği
-          'debtPaidEnabled': true, // ✅ Borç ödendi bildirimi
+          'XnotificationsEnabled': true, // ✅ Genel bildirim
+          'XindividualDebtEnabled': true, // ✅ Bireysel borç
+          'XgroupDebtEnabled': true, // ✅ Grup borcu
+          'XfriendRequestEnabled': true, // ✅ Arkadaşlık isteği
+          'XdebtPaidEnabled': true, // ✅ Borç ödendi bildirimi
         }, SetOptions(merge: true));
       }
 

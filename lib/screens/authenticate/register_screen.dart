@@ -14,11 +14,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   String _email = '';
   String _password = '';
+  String _confirmPassword = '';
   String _name = '';
   bool _isPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
 
-  // E-posta validasyonu için regex
   bool _isEmailValid(String email) {
     RegExp regex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
     return regex.hasMatch(email);
@@ -27,21 +28,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _submitRegisterForm() async {
     if (!_formKey.currentState!.validate()) return;
     _formKey.currentState!.save();
+
+    if (_password != _confirmPassword) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Şifreler uyuşmuyor.')),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
+
     try {
-      // Kullanıcı kaydı
       final userCredential = await AuthService().register(_email, _password);
 
-      // Kullanıcı bilgilerini Firestore'a ekle
       await FirestoreService().addUserToFirestore(
         userCredential.user!.uid,
         _name,
         _email,
       );
 
-      // Kullanıcıya e-posta doğrulama mesajı gönderildiğini bildir
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -49,7 +56,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       );
 
-      // Kullanıcıyı giriş ekranına yönlendir
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => LoginScreen()),
       );
@@ -159,6 +165,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   return null;
                 },
                 onSaved: (value) => _password = value!,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                decoration: InputDecoration(
+                  labelText: 'Şifre Tekrar',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  prefixIcon: const Icon(Icons.lock),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _isConfirmPasswordVisible
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                      color: Colors.black,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+                      });
+                    },
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                obscureText: !_isConfirmPasswordVisible,
+                validator: (value) {
+                  if (value == null || value.length < 6) {
+                    return 'Şifre en az 6 karakter olmalı.';
+                  }
+                  return null;
+                },
+                onSaved: (value) => _confirmPassword = value!,
               ),
             ],
             submitButtonText: 'Kayıt Ol',

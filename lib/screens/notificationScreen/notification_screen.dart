@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:teilen2/services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+// Bildirimlerin listelendiği ekran
 class NotificationScreen extends StatelessWidget {
   final NotificationService _notificationService = NotificationService();
 
@@ -10,6 +11,7 @@ class NotificationScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
+    // Kullanıcı oturum açmamışsa uyarı göster
     if (user == null) {
       return Center(
         child: Text('Kullanıcı oturum açmamış.'),
@@ -20,15 +22,20 @@ class NotificationScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text('Bildirimler'),
       ),
+
+      // Bildirimleri gerçek zamanlı olarak dinleyen StreamBuilder
       body: StreamBuilder<QuerySnapshot>(
-        stream: _notificationService.getPendingNotifications(user.uid),
+        stream: _notificationService
+            .getPendingNotifications(user.uid), // Bekleyen bildirimleri alır
         builder: (context, snapshot) {
+          // Bildirim yoksa mesaj göster
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return Center(child: Text('Hiçbir bildirim yok.'));
           }
 
           final notifications = snapshot.data!.docs;
 
+          // Bildirimleri liste olarak göster
           return ListView.builder(
             itemCount: notifications.length,
             itemBuilder: (context, index) {
@@ -36,11 +43,13 @@ class NotificationScreen extends StatelessWidget {
               final data = doc.data() as Map<String, dynamic>;
               final notificationId = doc.id;
 
-              final type = data['type'] ?? 'newDebt';
+              final type =
+                  data['type'] ?? 'newDebt'; // Bildirim türü kontrol edilir
 
               String message = '';
               Widget leadingIcon = Icon(Icons.person); // Varsayılan ikon
 
+              // Bildirim türüne göre mesaj ve ikon belirlenir
               if (type == 'newDebt') {
                 leadingIcon = Icon(Icons.person, color: Colors.teal);
                 if (data['relation'] == 'me_to_friend') {
@@ -68,20 +77,21 @@ class NotificationScreen extends StatelessWidget {
                 leadingIcon = Icon(Icons.groups, color: Colors.blue);
               }
 
-              // Miktarı yeşil renkle vurgulamak için metin parçalama
+              // <b>etiketleri</b> içindeki miktarları yeşil ve kalın göstermek için metni işler
               final amountRegExp = RegExp(r'(<b>)(.*?)(</b>)');
               final spans = <TextSpan>[];
               final matches = amountRegExp.allMatches(message);
 
               int lastIndex = 0;
               for (final match in matches) {
-                final normalText = message.substring(lastIndex, match.start);
-                final highlightedText = match.group(2)!;
+                final normalText =
+                    message.substring(lastIndex, match.start); // <b> öncesi
+                final highlightedText = match.group(2)!; // vurgulanacak miktar
 
-                spans.add(TextSpan(text: normalText));
+                spans.add(TextSpan(text: normalText)); // Normal yazı
                 spans.add(
                   TextSpan(
-                    text: highlightedText,
+                    text: highlightedText, // Vurgulu yazı
                     style: TextStyle(
                       color: Colors.green,
                       fontWeight: FontWeight.bold,
@@ -92,22 +102,23 @@ class NotificationScreen extends StatelessWidget {
                 lastIndex = match.end;
               }
 
-              // Kalan metni ekle
+              // Son kalan metni de ekle
               if (lastIndex < message.length) {
                 spans.add(TextSpan(text: message.substring(lastIndex)));
               }
 
+              // Tek bir bildirim kartı olarak gösterilir
               return Card(
                 margin: EdgeInsets.all(8.0),
                 child: ListTile(
-                  leading: leadingIcon,
+                  leading: leadingIcon, // Türüne göre belirlenen ikon
                   title: RichText(
                     text: TextSpan(
                       style: TextStyle(
                         color: Colors.black,
                         fontSize: 14,
                       ),
-                      children: spans,
+                      children: spans, // Renkli miktar içeren yazı
                     ),
                   ),
                   subtitle: Text(
@@ -117,6 +128,7 @@ class NotificationScreen extends StatelessWidget {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Bildirimi onayla
                       IconButton(
                         icon: Icon(Icons.check, color: Colors.green),
                         onPressed: () {
@@ -127,6 +139,7 @@ class NotificationScreen extends StatelessWidget {
                           );
                         },
                       ),
+                      // Bildirimi reddet
                       IconButton(
                         icon: Icon(Icons.close, color: Colors.red),
                         onPressed: () {

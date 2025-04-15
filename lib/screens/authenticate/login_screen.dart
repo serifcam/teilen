@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:teilen2/screens/authenticate/register_screen.dart';
+import 'package:teilen2/screens/authenticate/reset_password_screen.dart'; // ✅ Yeni ekran
 import 'package:teilen2/screens/mainScreen/main_screen.dart';
 import 'package:teilen2/services/auth_service.dart';
 import 'package:teilen2/widgets/auth_form.dart';
@@ -17,7 +18,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
 
-  // E-posta validasyonu için regex
   bool _isEmailValid(String email) {
     RegExp regex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
     return regex.hasMatch(email);
@@ -30,9 +30,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
     try {
-      // Kullanıcı giriş yapar
       await AuthService().signIn(_email, _password);
-      // Başarılı giriş sonrası ana ekrana yönlendir
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => MainScreen()),
       );
@@ -133,6 +131,25 @@ class _LoginScreenState extends State<LoginScreen> {
                   return null;
                 },
                 onSaved: (value) => _password = value!,
+              ),
+              const SizedBox(height: 12),
+
+              // ✅ Şifremi Unuttum Butonu
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => ResetPasswordScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    'Şifrenizi mi unuttunuz?',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
               ),
             ],
             submitButtonText: 'Giriş Yap',

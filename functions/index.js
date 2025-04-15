@@ -8,7 +8,7 @@ initializeApp();
 const db = getFirestore();
 
 /**
- * ✅ Arkadaşlık isteği bildirimi gönderir
+✅ Arkadaşlık isteği bildirimi gönderir
  */
 exports.sendFriendRequestNotification = onDocumentCreated(
   'friendRequests/{requestId}',

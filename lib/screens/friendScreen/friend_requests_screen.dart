@@ -12,15 +12,19 @@ class FriendRequestsScreen extends StatelessWidget {
         title: Text('Arkadaşlık İstekleri'),
       ),
       body: StreamBuilder<QuerySnapshot>(
+        // Firestore'dan gerçek zamanlı olarak bekleyen arkadaşlık isteklerini dinle
         stream: _friendRequestService.getPendingFriendRequestsStream(),
         builder: (context, snapshot) {
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return Center(child: Text('Arkadaşlık isteği yok.'));
           }
 
+          // Arkadaşlık isteklerini listele
           return ListView(
             children: snapshot.data!.docs.map((doc) {
               final data = doc.data() as Map<String, dynamic>;
+
+              // Her bir isteğin göndereninin bilgilerini Firestore'dan çek
               return FutureBuilder<Map<String, dynamic>?>(
                 future: _friendRequestService.getUserData(data['senderId']),
                 builder: (ctx, userSnapshot) {
@@ -30,7 +34,10 @@ class FriendRequestsScreen extends StatelessWidget {
                       subtitle: Text('Yükleniyor...'),
                     );
                   }
+
                   final senderData = userSnapshot.data!;
+
+                  // İstek atan kullanıcının bilgilerini göster
                   return ListTile(
                     leading: senderData['profileImageUrl'] != null
                         ? CircleAvatar(
@@ -70,7 +77,7 @@ class FriendRequestsScreen extends StatelessWidget {
                   );
                 },
               );
-            }).toList(),
+            }).toList(), // Tüm dökümanları liste elemanına dönüştür
           );
         },
       ),

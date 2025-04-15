@@ -108,23 +108,6 @@ class AuthService {
     }
   }
 
-  /// Kullanıcı silme işlemi
-  Future<void> deleteUser() async {
-    try {
-      final user = _auth.currentUser;
-      if (user != null) {
-        await user.delete();
-      } else {
-        throw Exception('Kullanıcı bulunamadı veya giriş yapılmamış.');
-      }
-    } on FirebaseAuthException catch (e) {
-      throw Exception(
-          'Kullanıcı silme işlemi sırasında bir hata oluştu: ${e.message}');
-    } catch (e) {
-      throw Exception('Beklenmeyen bir hata oluştu: $e');
-    }
-  }
-
   /// E-posta doğrulama durumu kontrolü
   Future<bool> isEmailVerified() async {
     final user = _auth.currentUser;
