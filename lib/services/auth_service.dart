@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:teilen2/services/api_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -41,7 +42,7 @@ class AuthService {
     }
   }
 
-  /// Yeni kullanıcı kaydeder ve doğrulama e-postası gönderir
+  /// Yeni kullanıcı kaydeder ve doğrulama e-postası gönderir + MYSQL API'ye kayıt eder
   Future<UserCredential> register(String email, String password) async {
     try {
       final userCredential = await _auth.createUserWithEmailAndPassword(
@@ -51,6 +52,12 @@ class AuthService {
 
       // E-posta doğrulama gönder
       await userCredential.user!.sendEmailVerification();
+
+      // ✅ KAYITTAN SONRA MYSQL'E KULLANICIYI KAYDEDİYORUZ
+      await ApiService.registerUserToMySQL(
+        _auth.currentUser!.uid,
+        email,
+      );
 
       return userCredential;
     } on FirebaseAuthException catch (e) {

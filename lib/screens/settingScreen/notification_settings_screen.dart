@@ -36,7 +36,6 @@ class _NotificationSettingsScreenState
       final data = doc.data();
 
       setState(() {
-        // ❗ Firestore'daki alanlar yanlışlıkla "X" ile başlamış
         _notificationsEnabled = data?['XnotificationsEnabled'] ?? true;
         _individualDebtEnabled = data?['XindividualDebtEnabled'] ?? true;
         _groupDebtEnabled = data?['XgroupDebtEnabled'] ?? true;

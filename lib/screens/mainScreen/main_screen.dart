@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:teilen2/screens/groupScreen/group_create_screen.dart';
 import 'package:teilen2/screens/settingScreen/settings_screen.dart';
 import '../individualScreen/individual_debt_screen.dart';
 import 'package:teilen2/screens/friendScreen/friends_screen.dart';
-import '../groupScreen/group_expense_screen.dart';
 import '../notificationScreen/notification_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -22,7 +22,7 @@ class _MainScreenState extends State<MainScreen> {
   // Alt menüde gösterilecek ekranlar listesi
   final List<Widget> _pages = [
     IndividualDebtScreen(),
-    GroupExpenseScreen(),
+    GroupCreateScreen(),
     FriendsScreen(),
     SettingsScreen(),
   ];

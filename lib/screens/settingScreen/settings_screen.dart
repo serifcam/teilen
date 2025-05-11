@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:loading_indicator/loading_indicator.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:teilen2/services/api_service.dart';
 import 'package:teilen2/services/user_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -13,16 +15,17 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final UserService _userService = UserService();
-
   String? _profileImageUrl;
   String? _name;
   String? _email;
   bool _isLoading = false;
+  String balance = '...';
 
   @override
   void initState() {
     super.initState();
     _fetchUserData();
+    _loadBalance();
   }
 
   Future<void> _fetchUserData() async {
@@ -32,6 +35,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _profileImageUrl = userData['profileImageUrl'];
         _name = userData['name'];
         _email = userData['email'];
+      });
+    }
+  }
+
+  Future<void> _loadBalance() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+      final result = await ApiService.getBalance(uid);
+      setState(() {
+        balance = '$result ₺';
+      });
+    } catch (e) {
+      setState(() {
+        balance = 'Hata!';
       });
     }
   }
@@ -62,7 +79,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _deleteProfileImage() async {
     setState(() => _isLoading = true);
-
     try {
       await _userService.deleteProfileImageOnStorage(forceDelete: true);
       setState(() => _profileImageUrl = null);
@@ -117,6 +133,110 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SnackBar(content: Text('Çıkış yapılamadı: $e')),
       );
     }
+  }
+
+  Future<void> _showDepositDialog() async {
+    final controller = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Para Yükle'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(hintText: 'Yüklenecek miktar (₺)'),
+        ),
+        actions: [
+          TextButton(
+            child: Text('İptal'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          TextButton(
+            child: Text('Yükle'),
+            onPressed: () async {
+              final amount = double.tryParse(controller.text);
+              if (amount == null || amount <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Geçerli bir miktar girin!')));
+                return;
+              }
+              try {
+                final uid = FirebaseAuth.instance.currentUser!.uid;
+                final result = await ApiService.depositMoney(uid, amount);
+                if (result == 'success') {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('✅ Para başarıyla yüklendi!')));
+                  await _loadBalance();
+                } else if (result.contains('insufficient')) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('❌ Yetersiz ana bakiye!')));
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('❌ Yükleme başarısız: $result')));
+                }
+              } catch (e) {
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(SnackBar(content: Text('❌ Hata: $e')));
+              }
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showWithdrawDialog() async {
+    final controller = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Para Çek'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(hintText: 'Çekilecek miktar (₺)'),
+        ),
+        actions: [
+          TextButton(
+            child: Text('İptal'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          TextButton(
+            child: Text('Çek'),
+            onPressed: () async {
+              final amount = double.tryParse(controller.text);
+              if (amount == null || amount <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Geçerli bir miktar girin!')));
+                return;
+              }
+              try {
+                final uid = FirebaseAuth.instance.currentUser!.uid;
+                final result = await ApiService.withdrawMoney(uid, amount);
+                if (result == 'success') {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('✅ Para başarıyla çekildi!')));
+                  await _loadBalance();
+                } else if (result.contains('Yetersiz bakiye')) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('❌ Yetersiz bakiye!')));
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('❌ Çekim başarısız: $result')));
+                }
+              } catch (e) {
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(SnackBar(content: Text('❌ Hata: $e')));
+              }
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -174,8 +294,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           Divider(thickness: 1, color: Colors.grey),
-
-          /// ✅ Bildirim Ayarları Seçeneği
+          ListTile(
+            leading: Icon(Icons.account_balance_wallet_outlined,
+                color: Colors.teal, size: 30),
+            title: Text(
+              '$balance',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.arrow_downward, color: Colors.green),
+                  tooltip: 'Para Yükle',
+                  onPressed: _showDepositDialog,
+                ),
+                IconButton(
+                  icon: Icon(Icons.arrow_upward, color: Colors.red),
+                  tooltip: 'Para Çek',
+                  onPressed: _showWithdrawDialog,
+                ),
+              ],
+            ),
+          ),
+          Divider(thickness: 1, color: Colors.grey),
           ListTile(
             leading: Icon(Icons.notifications_active, color: Colors.teal),
             title: Text(
@@ -187,7 +332,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.of(context).pushNamed('/notification-settings');
             },
           ),
-
           Spacer(),
           Padding(
             padding: const EdgeInsets.all(16.0),

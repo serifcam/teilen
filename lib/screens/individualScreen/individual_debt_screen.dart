@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:teilen2/services/api_service.dart';
 import 'package:teilen2/services/debt_service.dart';
 
 class IndividualDebtScreen extends StatefulWidget {
@@ -16,7 +17,6 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
   String? _selectedFriendEmail;
   String _relation = 'me_to_friend';
 
-  // Servis katmanından bir instance oluşturuyoruz
   final DebtService _debtService = DebtService();
 
   @override
@@ -25,7 +25,6 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
     _loadFriends();
   }
 
-  /// Servis katmanından arkadaş listesini çekiyoruz
   Future<void> _loadFriends() async {
     final friends = await _debtService.loadFriends();
     setState(() {
@@ -33,8 +32,7 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
     });
   }
 
-  /// "Ekle" butonuna tıklandığında çalışır
-  Future<void> _addDebt() async {
+  Future<void> _sendDebtNotification() async {
     if (_selectedFriendEmail == null ||
         _amountController.text.isEmpty ||
         _descriptionController.text.isEmpty) {
@@ -45,7 +43,7 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
     }
 
     try {
-      await _debtService.addDebt(
+      await _debtService.sendDebtNotification(
         friendEmail: _selectedFriendEmail!,
         amount: double.parse(_amountController.text),
         description: _descriptionController.text,
@@ -53,7 +51,7 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Bildirim gönderildi, onay bekleniyor!')),
+        SnackBar(content: Text('Borç bildirimi gönderildi, onay bekleniyor!')),
       );
 
       _amountController.clear();
@@ -66,17 +64,13 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
     }
   }
 
-  /// Borcu ödediğini onaylama işlemi
-  Future<void> _confirmDebtPaid(
-    BuildContext context,
-    String debtDocId,
-    Map<String, dynamic> debtData,
-  ) async {
+  Future<void> _confirmPayment(BuildContext context, String debtDocId,
+      Map<String, dynamic> debtData) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text('Onay'),
-        content: Text('Borcu ödediğinizi onaylıyor musunuz?'),
+        title: Text('Borç Ödeme'),
+        content: Text('Borcunu ödemek istiyor musun?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -84,7 +78,7 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Evet'),
+            child: Text('Evet', style: TextStyle(color: Colors.green)),
           ),
         ],
       ),
@@ -92,15 +86,68 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
 
     if (confirm == true) {
       try {
-        await _debtService.confirmDebtPaid(
-          debtDocId: debtDocId,
-          debtData: debtData,
-        );
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser == null) throw Exception('Kullanıcı bulunamadı.');
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Borcu ödediğinize dair bildirim gönderildi.')),
-        );
+        final borrowerUid = currentUser.uid;
+        final lenderUid = debtData['lenderId'];
+        final debtAmount = (debtData['amount'] as num).toDouble();
+
+        final balanceStr = await ApiService.getBalance(borrowerUid);
+        final balance = double.tryParse(balanceStr) ?? 0.0;
+
+        if (balance >= debtAmount) {
+          await ApiService.payDebt(
+              borrowerUid, lenderUid, debtAmount, debtDocId);
+
+          // ✅ 1. Kendi borç kaydını 'paid' yap
+          await FirebaseFirestore.instance
+              .collection('individualDebts')
+              .doc(debtDocId)
+              .update({'status': 'paid'});
+
+          // ✅ 2. Karşı tarafın kartını da 'paid' yap
+          final query = await FirebaseFirestore.instance
+              .collection('individualDebts')
+              .where('borrowerId', isEqualTo: lenderUid)
+              .where('lenderId', isEqualTo: borrowerUid)
+              .where('amount', isEqualTo: debtAmount)
+              .where('status', isEqualTo: 'pending')
+              .limit(1)
+              .get();
+
+          if (query.docs.isNotEmpty) {
+            final otherDebtDocId = query.docs.first.id;
+            await FirebaseFirestore.instance
+                .collection('individualDebts')
+                .doc(otherDebtDocId)
+                .update({'status': 'paid'});
+          }
+
+          // ✅ Bilgi bildirimi gönder
+          await FirebaseFirestore.instance.collection('notifications').add({
+            'type': 'paymentInfo',
+            'status': 'info',
+            'fromUser': borrowerUid,
+            'fromUserEmail': currentUser.email ?? '',
+            'toUser': lenderUid,
+            'toUserEmail': debtData['friendEmail'],
+            'amount': debtAmount,
+            'description':
+                '🪙 ${currentUser.email ?? 'Bir kullanıcı'}, size olan $debtAmount TL borcunu ödemiştir.',
+            'createdAt': Timestamp.now(),
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(
+                    '✅ Borç ödendi ve her iki tarafın kaydı güncellendi!')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('❌ Yetersiz bakiye!')),
+          );
+        }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Hata: $e')),
@@ -109,7 +156,6 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
     }
   }
 
-  /// Ekranda borç kartlarını oluşturur
   Widget _buildDebtCard(Map<String, dynamic> data, String docId) {
     final createdAt = data['createdAt'] as Timestamp?;
     String formattedDate = createdAt != null
@@ -120,72 +166,118 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
     bool isMeToFriend = data['relation'] == 'me_to_friend';
     final currentUser = FirebaseAuth.instance.currentUser;
 
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      elevation: 4,
-      margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      child: Row(
-        children: [
-          // Sol taraftaki ikon
-          Container(
-            width: 60,
-            decoration: BoxDecoration(
-              border: Border(
-                right: BorderSide(
-                  color: Colors.grey.shade300,
-                  width: 1,
+    bool isBorrower = data['borrowerId'] == currentUser?.uid;
+    bool isPaid = data['status'] == 'paid';
+
+    return Dismissible(
+      key: Key(docId),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (direction) async {
+        if (isPaid) {
+          final result = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text('Onay'),
+              content:
+                  Text('Borcunuzu ödediniz. Bu kartı silmek ister misiniz?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text('Hayır'),
                 ),
-              ),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  isMeToFriend ? Icons.arrow_upward : Icons.arrow_downward,
-                  color: isMeToFriend ? Colors.red : Colors.green,
-                ),
-                SizedBox(height: 4),
-                Text(
-                  isMeToFriend ? 'Borçluyum' : 'Borçlu',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: isMeToFriend ? Colors.red : Colors.green,
-                  ),
-                  textAlign: TextAlign.center,
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: Text('Evet'),
                 ),
               ],
             ),
-          ),
-          // Orta kısımdaki borç bilgileri
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
+          );
+          return result ?? false;
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Bu borç henüz ödenmediği için silemezsiniz.')),
+          );
+          return false;
+        }
+      },
+      onDismissed: (direction) async {
+        await FirebaseFirestore.instance
+            .collection('individualDebts')
+            .doc(docId)
+            .delete();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Borç kartı silindi!')),
+        );
+      },
+      background: Container(
+        color: Colors.red,
+        alignment: Alignment.centerRight,
+        padding: EdgeInsets.only(right: 20),
+        child: Icon(Icons.delete, color: Colors.white),
+      ),
+      child: Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        elevation: 4,
+        margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        child: Row(
+          children: [
+            Container(
+              width: 60,
+              decoration: BoxDecoration(
+                border: Border(
+                  right: BorderSide(color: Colors.grey.shade300, width: 1),
+                ),
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('${data['friendEmail']}'),
-                  Text('Açıklama: ${data['description']}'),
-                  Text('Borç: ${data['amount']} TL'),
+                  Icon(
+                    isMeToFriend ? Icons.arrow_upward : Icons.arrow_downward,
+                    color: isMeToFriend ? Colors.red : Colors.green,
+                  ),
+                  SizedBox(height: 4),
                   Text(
-                    'Tarih: $formattedDate',
-                    style: TextStyle(fontSize: 10, color: Colors.grey[700]),
+                    isMeToFriend ? 'Borçluyum' : 'Borçlu',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: isMeToFriend ? Colors.red : Colors.green,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
             ),
-          ),
-          // Sağ taraftaki "Borcu Ödedim" ikonu (Sadece borçlu olan kişi görür)
-          if (isMeToFriend && data['borrowerId'] == currentUser?.uid)
-            Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: IconButton(
-                icon: Icon(Icons.close, color: Colors.black),
-                onPressed: () => _confirmDebtPaid(context, docId, data),
-                tooltip: 'Borcu ödediğinizi bildir',
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${data['friendName'] ?? data['friendEmail']}'),
+                    Text('Açıklama: ${data['description']}'),
+                    Text('Borç: ${data['amount']} TL'),
+                    Text(
+                      'Tarih: $formattedDate',
+                      style: TextStyle(fontSize: 10, color: Colors.grey[700]),
+                    ),
+                  ],
+                ),
               ),
             ),
-        ],
+            if (isMeToFriend && isBorrower && !isPaid)
+              Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: IconButton(
+                  icon: Icon(Icons.payment, color: Colors.green, size: 28),
+                  tooltip: 'Borcu öde',
+                  onPressed: () => _confirmPayment(context, docId, data),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -200,7 +292,6 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Arkadaş seçimi
             DropdownButtonFormField<String>(
               value: _selectedFriendEmail,
               items: _friendsList.map<DropdownMenuItem<String>>((friend) {
@@ -219,7 +310,6 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
               ),
             ),
             SizedBox(height: 10),
-            // Borç miktarı
             TextField(
               controller: _amountController,
               decoration: InputDecoration(
@@ -231,7 +321,6 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
               keyboardType: TextInputType.number,
             ),
             SizedBox(height: 10),
-            // Açıklama
             TextField(
               controller: _descriptionController,
               decoration: InputDecoration(
@@ -242,12 +331,11 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
               ),
             ),
             SizedBox(height: 10),
-            // Radyo butonları ve "Ekle" butonu
             Row(
               children: [
                 ElevatedButton(
-                  onPressed: _addDebt,
-                  child: Text('Ekle'),
+                  onPressed: _sendDebtNotification,
+                  child: Text('Oluştur'),
                 ),
                 SizedBox(width: 6),
                 Expanded(
@@ -280,7 +368,6 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
               ],
             ),
             SizedBox(height: 10),
-            // Borçların listesi
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: _debtService.getDebtsStream(),
@@ -290,8 +377,7 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
                   }
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                     return Center(
-                      child: Text('Henüz eklenmiş borç bulunmamaktadır.'),
-                    );
+                        child: Text('Henüz eklenmiş borç bulunmamaktadır.'));
                   }
 
                   final debts = snapshot.data!.docs;

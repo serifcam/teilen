@@ -27,7 +27,7 @@ class FriendRequestService {
       });
     }
 
-    // ❌ İstek kabul edilse de, reddedilse de → Firestore'dan tamamen sil
+    //  İstek kabul edilse de, reddedilse de → Firestore'dan tamamen sil
     await _firestore.collection('friendRequests').doc(requestId).delete();
   }
 
