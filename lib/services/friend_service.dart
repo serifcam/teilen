@@ -28,7 +28,6 @@ class FriendService {
 
     final receiverId = querySnapshot.docs.first.id;
 
-    //  Daha önce arkadaşlık isteği gönderilmiş mi kontrol et
     final existingRequest = await _firestore
         .collection('friendRequests')
         .where('senderId', isEqualTo: currentUser.uid)
@@ -40,7 +39,6 @@ class FriendService {
       throw Exception('Zaten bu kullanıcıya arkadaşlık isteği gönderdiniz.');
     }
 
-    //  Zaten arkadaş mı kontrolü
     final currentUserDoc =
         await _firestore.collection('users').doc(currentUser.uid).get();
     List friends = currentUserDoc['friends'] ?? [];
@@ -49,7 +47,6 @@ class FriendService {
       throw Exception('Zaten bu kişiyle arkadaşsınız.');
     }
 
-    //  Yeni istek gönder
     await _firestore.collection('friendRequests').add({
       'senderId': currentUser.uid,
       'receiverId': receiverId,
@@ -111,5 +108,29 @@ class FriendService {
 
       yield friendList;
     }
+  }
+
+  /// Belirli bir arkadaşla okunmamış mesaj var mı kontrolü
+  Future<bool> hasUnreadMessage(String friendId) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return false;
+
+    final chatKey = _generateChatKey(currentUser.uid, friendId);
+
+    final unread = await _firestore
+        .collection('quickMessages')
+        .where('chatKey', isEqualTo: chatKey)
+        .where('receiverId', isEqualTo: currentUser.uid)
+        .where('isRead', isEqualTo: false)
+        .limit(1)
+        .get();
+
+    return unread.docs.isNotEmpty;
+  }
+
+  /// ChatKey üretici
+  String _generateChatKey(String uid1, String uid2) {
+    final sorted = [uid1, uid2]..sort();
+    return '${sorted[0]}_${sorted[1]}';
   }
 }
