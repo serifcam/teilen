@@ -12,7 +12,6 @@ class AuthService {
         password: password,
       );
 
-      // E-posta doğrulama kontrolü
       if (!userCredential.user!.emailVerified) {
         await _auth.signOut();
         throw Exception(
@@ -43,20 +42,21 @@ class AuthService {
   }
 
   /// Yeni kullanıcı kaydeder ve doğrulama e-postası gönderir + MYSQL API'ye kayıt eder
-  Future<UserCredential> register(String email, String password) async {
+  Future<UserCredential> register(
+      String email, String password, String name) async {
     try {
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      // E-posta doğrulama gönder
       await userCredential.user!.sendEmailVerification();
 
       // ✅ KAYITTAN SONRA MYSQL'E KULLANICIYI KAYDEDİYORUZ
       await ApiService.registerUserToMySQL(
         _auth.currentUser!.uid,
         email,
+        name, // <-- Burada name'i gönderiyoruz!
       );
 
       return userCredential;
@@ -119,7 +119,7 @@ class AuthService {
   Future<bool> isEmailVerified() async {
     final user = _auth.currentUser;
     if (user != null) {
-      await user.reload(); // Kullanıcı bilgilerini güncelle
+      await user.reload();
       return user.emailVerified;
     }
     return false;

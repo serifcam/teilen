@@ -6,6 +6,7 @@ import 'package:teilen2/screens/authenticate/login_screen.dart';
 import 'package:teilen2/screens/settingScreen/settings_screen.dart';
 import 'package:teilen2/screens/settingScreen/notification_settings_screen.dart';
 import 'package:teilen2/screens/mainScreen/main_screen.dart';
+import 'package:teilen2/screens/settingScreen/transaction_history_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -16,7 +17,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-// Uygulama kapalıyken bildirim göndermeye yarar
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   runApp(MyApp());
@@ -53,17 +53,17 @@ class _MyAppState extends State<MyApp> {
       if (user != null && token != null) {
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'fcmToken': token,
-          'XnotificationsEnabled': true, // ✅ Genel bildirim
-          'XindividualDebtEnabled': true, // ✅ Bireysel borç
-          'XgroupDebtEnabled': true, // ✅ Grup borcu
-          'XfriendRequestEnabled': true, // ✅ Arkadaşlık isteği
-          'XdebtPaidEnabled': true, // ✅ Borç ödendi bildirimi
+          'XnotificationsEnabled': true,
+          'XindividualDebtEnabled': true,
+          'XgroupDebtEnabled': true,
+          'XfriendRequestEnabled': true,
+          'XdebtPaidEnabled': true,
         }, SetOptions(merge: true));
       }
 
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         print('📥 Foreground mesaj: ${message.notification?.title}');
-        if (message.notification != null) {
+        if (message.notification != null && mounted) {
           final snackBar = SnackBar(
             content: Text(
               '${message.notification!.title ?? 'Bildirim'} - '
@@ -92,6 +92,16 @@ class _MyAppState extends State<MyApp> {
         '/main': (context) => MainScreen(),
         '/settings': (context) => SettingsScreen(),
         '/notification-settings': (context) => NotificationSettingsScreen(),
+      },
+      // Transaction history için uid route parametresi ile destekli
+      onGenerateRoute: (settings) {
+        if (settings.name == '/transaction-history') {
+          final userUid = settings.arguments as String?;
+          return MaterialPageRoute(
+            builder: (context) => TransactionHistoryScreen(userUid: userUid),
+          );
+        }
+        return null;
       },
     );
   }

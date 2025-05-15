@@ -41,8 +41,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      final userCredential = await AuthService().register(_email, _password);
+      // !! ADI DA GÖNDERİYORUZ !!
+      final userCredential =
+          await AuthService().register(_email, _password, _name);
 
+      // Firestore'a ekleme işlemi (Firebase tarafı için, istersen)
       await FirestoreService().addUserToFirestore(
         userCredential.user!.uid,
         _name,

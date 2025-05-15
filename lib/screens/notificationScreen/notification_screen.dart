@@ -14,21 +14,54 @@ class NotificationScreen extends StatelessWidget {
       return Center(child: Text('Kullanıcı oturum açmamış.'));
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? Colors.grey.shade900 : Colors.grey.shade100;
+    final neutral = isDark ? Colors.grey.shade100 : Colors.grey.shade900;
+
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
-        title: Text('Bildirimler'),
+        title: Text(
+          'Bildirimler',
+          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.2),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.teal.shade700,
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(18)),
+        ),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: _notificationService.getAllNotifications(user.uid),
         builder: (context, snapshot) {
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(child: Text('Hiçbir bildirim yok.'));
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.notifications_none_rounded,
+                      size: 60, color: Colors.teal.shade100),
+                  SizedBox(height: 10),
+                  Text(
+                    'Hiçbir bildirim yok.',
+                    style: TextStyle(
+                        fontSize: 17,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+            );
           }
 
           final notifications = snapshot.data!.docs;
 
-          return ListView.builder(
+          return ListView.separated(
+            padding: EdgeInsets.symmetric(vertical: 16, horizontal: 10),
             itemCount: notifications.length,
+            separatorBuilder: (c, i) => SizedBox(height: 6),
             itemBuilder: (context, index) {
               final doc = notifications[index];
               final data = doc.data() as Map<String, dynamic>;
@@ -38,11 +71,12 @@ class NotificationScreen extends StatelessWidget {
               final status = data['status'] ?? 'pending';
 
               String message = '';
-              Widget leadingIcon =
-                  Icon(Icons.notifications, color: Colors.grey);
+              IconData iconData = Icons.notifications;
+              Color iconColor = Colors.teal.shade300;
 
               if (type == 'newDebt') {
-                leadingIcon = Icon(Icons.person, color: Colors.teal);
+                iconData = Icons.person_rounded;
+                iconColor = Colors.teal.shade400;
                 if (data['relation'] == 'me_to_friend') {
                   message =
                       "${data['fromUserEmail'] ?? "Bilinmeyen Kullanıcı"} size <b>${data['amount'] ?? 0} TL</b> borç ekledi.";
@@ -51,30 +85,33 @@ class NotificationScreen extends StatelessWidget {
                       "Siz ${data['toUserEmail'] ?? "Bilinmeyen Kullanıcı"} kişisine <b>${data['amount'] ?? 0} TL</b> borç eklediniz.";
                 }
               } else if (type == 'debtPaid' || type == 'paymentInfo') {
+                iconData = Icons.attach_money_rounded;
+                iconColor = Colors.orange.shade400;
                 final fromUserEmail =
                     data['fromUserEmail'] ?? 'Bilinmeyen Kullanıcı';
                 final amount = data['amount'] ?? 0;
                 message =
                     "🪙 $fromUserEmail, size olan <b>$amount TL</b> borcunu ödemiştir.";
-                leadingIcon = Icon(Icons.attach_money, color: Colors.orange);
               } else if (type == 'groupRequest') {
+                iconData = Icons.groups_2_rounded;
+                iconColor = Colors.teal.shade400;
                 final groupName = data['groupName'] ?? 'Grup';
                 final amount = data['amount'] ?? 0;
                 final groupCreatorName =
                     data['fromUserName'] ?? 'Bir kullanıcı';
                 message =
                     "💬 $groupCreatorName sizinle \"$groupName\" grubunu oluşturmak istiyor. Kişi başı <b>$amount TL</b> ödeme düşüyor.";
-                leadingIcon = Icon(Icons.groups_2_rounded, color: Colors.teal);
               } else if (type == 'debtPayment') {
+                iconData = Icons.payments_rounded;
+                iconColor = Colors.green.shade400;
                 final fromUserEmail = data['fromUserEmail'] ?? 'Bir kullanıcı';
                 final groupName = data['groupName'] ?? 'bir grup';
                 final amount = data['amount'] ?? 0;
                 message =
                     "💸 $fromUserEmail, \"$groupName\" grubundaki <b>$amount TL</b> borcunu ödedi.";
-                leadingIcon =
-                    Icon(Icons.payments_outlined, color: Colors.green);
               }
 
+              // <b>...</b> arasını vurgulu göster
               final amountRegExp = RegExp(r'(<b>)(.*?)(</b>)');
               final spans = <TextSpan>[];
               final matches = amountRegExp.allMatches(message);
@@ -89,7 +126,7 @@ class NotificationScreen extends StatelessWidget {
                   TextSpan(
                     text: highlightedText,
                     style: TextStyle(
-                      color: Colors.green,
+                      color: iconColor,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -102,22 +139,111 @@ class NotificationScreen extends StatelessWidget {
                 spans.add(TextSpan(text: message.substring(lastIndex)));
               }
 
-              // 🔥 Eğer "info" veya "debtPaid" bildirimi ise kaydırarak silelim
+              // KART YAPISI
+              final card = Card(
+                elevation: 3,
+                margin: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                color: Colors.white,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: iconColor.withOpacity(0.18),
+                      child: Icon(iconData, color: iconColor, size: 26),
+                      radius: 22,
+                    ),
+                    title: RichText(
+                      text: TextSpan(
+                        style: TextStyle(
+                          color: neutral,
+                          fontSize: 14.8,
+                          height: 1.3,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        children: spans,
+                      ),
+                    ),
+                    subtitle:
+                        data['description'] != null && data['description'] != ''
+                            ? Padding(
+                                padding: const EdgeInsets.only(top: 3),
+                                child: Text(
+                                  'Açıklama: ${data['description']}',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 12.8,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                              )
+                            : null,
+                    trailing: status == 'pending'
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Tooltip(
+                                message: "Kabul Et",
+                                child: IconButton(
+                                  icon: Icon(Icons.check_circle_rounded,
+                                      color: Colors.green, size: 27),
+                                  onPressed: () {
+                                    _notificationService
+                                        .updateNotificationStatus(
+                                      notificationId: notificationId,
+                                      status: 'approved',
+                                      data: data,
+                                    );
+                                  },
+                                ),
+                              ),
+                              Tooltip(
+                                message: "Reddet",
+                                child: IconButton(
+                                  icon: Icon(Icons.cancel_rounded,
+                                      color: Colors.red.shade400, size: 27),
+                                  onPressed: () {
+                                    _notificationService
+                                        .updateNotificationStatus(
+                                      notificationId: notificationId,
+                                      status: 'rejected',
+                                      data: data,
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          )
+                        : null,
+                  ),
+                ),
+              );
+
+              // Sadece info olanlar kaydırarak silinebilir!
               if (status == 'info') {
                 return Dismissible(
                   key: Key(notificationId),
                   direction: DismissDirection.endToStart,
                   background: Container(
-                    color: Colors.red,
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade400,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
                     alignment: Alignment.centerRight,
-                    padding: EdgeInsets.only(right: 20),
-                    child: Icon(Icons.delete, color: Colors.white),
+                    padding: EdgeInsets.only(right: 24),
+                    child: Icon(Icons.delete_forever_rounded,
+                        color: Colors.white, size: 30),
                   ),
                   confirmDismiss: (direction) async {
                     return await showDialog<bool>(
                       context: context,
                       builder: (context) => AlertDialog(
-                        title: Text('Bildirim Silinsin mi?'),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15)),
+                        title: Text('Bildirim silinsin mi?'),
                         content: Text('Bu bildirim silinecek, emin misin?'),
                         actions: [
                           TextButton(
@@ -137,69 +263,10 @@ class NotificationScreen extends StatelessWidget {
                     await _notificationService
                         .deleteNotification(notificationId);
                   },
-                  child: Card(
-                    margin: EdgeInsets.all(8.0),
-                    child: ListTile(
-                      leading: leadingIcon,
-                      title: RichText(
-                        text: TextSpan(
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 14,
-                          ),
-                          children: spans,
-                        ),
-                      ),
-                    ),
-                  ),
+                  child: card,
                 );
               }
-
-              // 🔥 Eğer pending borç bildirimi ise eski sistem devam
-              return Card(
-                margin: EdgeInsets.all(8.0),
-                child: ListTile(
-                  leading: leadingIcon,
-                  title: RichText(
-                    text: TextSpan(
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 14,
-                      ),
-                      children: spans,
-                    ),
-                  ),
-                  subtitle: Text(
-                    'Açıklama: ${data['description'] ?? "Açıklama yok"}',
-                    style: TextStyle(color: Colors.grey[700]),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.check, color: Colors.green),
-                        onPressed: () {
-                          _notificationService.updateNotificationStatus(
-                            notificationId: notificationId,
-                            status: 'approved',
-                            data: data,
-                          );
-                        },
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.close, color: Colors.red),
-                        onPressed: () {
-                          _notificationService.updateNotificationStatus(
-                            notificationId: notificationId,
-                            status: 'rejected',
-                            data: data,
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              );
+              return card;
             },
           );
         },

@@ -7,80 +7,208 @@ class FriendRequestsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bgColor = Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade900
+        : Colors.grey.shade50;
+
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
         title: Text('Arkadaşlık İstekleri'),
+        elevation: 1.2,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.teal.shade800,
+        centerTitle: true,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(18)),
+        ),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        // Firestore'dan gerçek zamanlı olarak bekleyen arkadaşlık isteklerini dinle
         stream: _friendRequestService.getPendingFriendRequestsStream(),
         builder: (context, snapshot) {
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(child: Text('Arkadaşlık isteği yok.'));
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.mark_email_unread_rounded,
+                      size: 62, color: Colors.teal.shade100),
+                  SizedBox(height: 10),
+                  Text(
+                    'Bekleyen arkadaşlık isteği yok.',
+                    style: TextStyle(
+                        fontSize: 17,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+            );
           }
 
-          // Arkadaşlık isteklerini listele
-          return ListView(
-            children: snapshot.data!.docs.map((doc) {
+          final requests = snapshot.data!.docs;
+
+          return ListView.separated(
+            padding: EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+            separatorBuilder: (c, i) => SizedBox(height: 10),
+            itemCount: requests.length,
+            itemBuilder: (ctx, i) {
+              final doc = requests[i];
               final data = doc.data() as Map<String, dynamic>;
 
-              // Her bir isteğin göndereninin bilgilerini Firestore'dan çek
               return FutureBuilder<Map<String, dynamic>?>(
                 future: _friendRequestService.getUserData(data['senderId']),
                 builder: (ctx, userSnapshot) {
                   if (!userSnapshot.hasData) {
-                    return ListTile(
-                      title: Text('Bilinmeyen Kullanıcı'),
-                      subtitle: Text('Yükleniyor...'),
-                    );
+                    return _friendRequestShimmer();
                   }
 
-                  final senderData = userSnapshot.data!;
-
-                  // İstek atan kullanıcının bilgilerini göster
-                  return ListTile(
-                    leading: senderData['profileImageUrl'] != null
-                        ? CircleAvatar(
-                            backgroundImage:
-                                NetworkImage(senderData['profileImageUrl']),
-                          )
-                        : CircleAvatar(
-                            child: Icon(Icons.person),
+                  final sender = userSnapshot.data!;
+                  return Card(
+                    elevation: 2,
+                    margin: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    child: ListTile(
+                      contentPadding:
+                          EdgeInsets.symmetric(vertical: 14, horizontal: 13),
+                      leading: sender['profileImageUrl'] != null
+                          ? CircleAvatar(
+                              backgroundImage:
+                                  NetworkImage(sender['profileImageUrl']),
+                              radius: 24,
+                            )
+                          : CircleAvatar(
+                              child: Icon(Icons.person, color: Colors.teal),
+                              backgroundColor: Colors.teal.shade50,
+                              radius: 24,
+                            ),
+                      title: Text(
+                        sender['name'] ?? 'Bilinmeyen',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.teal.shade700,
+                        ),
+                      ),
+                      subtitle: Text(
+                        sender['email'] ?? '',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Tooltip(
+                            message: "Kabul Et",
+                            child: IconButton(
+                              icon: Icon(Icons.check_circle_rounded,
+                                  color: Colors.green, size: 28),
+                              onPressed: () async {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: Text("Arkadaş Ekle"),
+                                    content: Text(
+                                        "Arkadaş eklemek istediğine emin misin?"),
+                                    actions: [
+                                      TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(ctx, false),
+                                          child: Text("Vazgeç")),
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, true),
+                                        child: Text("Evet",
+                                            style:
+                                                TextStyle(color: Colors.green)),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirm == true) {
+                                  _friendRequestService.updateRequestStatus(
+                                    requestId: doc.id,
+                                    status: 'accepted',
+                                    senderId: data['senderId'],
+                                  );
+                                }
+                              },
+                            ),
                           ),
-                    title: Text(senderData['name'] ?? 'Bilinmeyen İsim'),
-                    subtitle: Text(senderData['email'] ?? ''),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.check, color: Colors.green),
-                          onPressed: () {
-                            _friendRequestService.updateRequestStatus(
-                              requestId: doc.id,
-                              status: 'accepted',
-                              senderId: data['senderId'],
-                            );
-                          },
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.close, color: Colors.red),
-                          onPressed: () {
-                            _friendRequestService.updateRequestStatus(
-                              requestId: doc.id,
-                              status: 'declined',
-                              senderId: data['senderId'],
-                            );
-                          },
-                        ),
-                      ],
+                          Tooltip(
+                            message: "Reddet",
+                            child: IconButton(
+                              icon: Icon(Icons.cancel_rounded,
+                                  color: Colors.red.shade400, size: 28),
+                              onPressed: () async {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: Text("Arkadaşlığı Reddet"),
+                                    content: Text(
+                                        "Arkadaşlık isteğini reddetmek istediğine emin misin?"),
+                                    actions: [
+                                      TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(ctx, false),
+                                          child: Text("Vazgeç")),
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, true),
+                                        child: Text("Evet",
+                                            style:
+                                                TextStyle(color: Colors.red)),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirm == true) {
+                                  _friendRequestService.updateRequestStatus(
+                                    requestId: doc.id,
+                                    status: 'declined',
+                                    senderId: data['senderId'],
+                                  );
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },
               );
-            }).toList(), // Tüm dökümanları liste elemanına dönüştür
+            },
           );
         },
       ),
     );
   }
+}
+
+// Yükleniyor shimmerı gibi - boş hali
+Widget _friendRequestShimmer() {
+  return Card(
+    margin: EdgeInsets.zero,
+    elevation: 0.5,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    child: ListTile(
+      contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 13),
+      leading: CircleAvatar(
+        backgroundColor: Colors.grey.shade200,
+        child: Icon(Icons.hourglass_empty, color: Colors.teal.shade100),
+      ),
+      title: Container(
+        width: 75,
+        height: 16,
+        color: Colors.grey.shade200,
+      ),
+      subtitle: Container(
+        width: 40,
+        height: 10,
+        color: Colors.grey.shade100,
+      ),
+      trailing: SizedBox(width: 60, height: 18),
+    ),
+  );
 }

@@ -43,8 +43,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     }
 
     return Scaffold(
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? Colors.grey.shade900
+          : Colors.grey.shade100,
       appBar: AppBar(
         title: Text('${widget.groupName} Detayları'),
+        backgroundColor: Colors.white,
+        elevation: 2,
+        foregroundColor: Colors.teal.shade800,
+        centerTitle: true,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(18)),
+        ),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: _firestore
@@ -74,6 +84,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
           return ListView.builder(
             itemCount: sortedDebts.length,
+            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
             itemBuilder: (context, index) {
               final debt = sortedDebts[index];
               final data = debt.data() as Map<String, dynamic>;
@@ -87,29 +98,69 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 builder: (context, snapshot) {
                   final name = snapshot.data ?? 'Yükleniyor...';
                   return Card(
-                    margin: EdgeInsets.all(8),
+                    elevation: 2,
+                    margin: EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15)),
+                    color: Theme.of(context).cardColor,
                     child: ListTile(
+                      contentPadding:
+                          EdgeInsets.symmetric(vertical: 12, horizontal: 14),
                       leading: Icon(
                         Icons.person,
-                        color: isCreator ? Colors.amber : Colors.teal,
+                        color: isCreator ? Colors.amber.shade700 : Colors.teal,
+                        size: 28,
                       ),
-                      title: Text(name),
-                      subtitle: Text(
-                        isCreator
-                            ? 'Tüm borç ödendi'
-                            : 'Borç: ${((data['amount'] as num?) ?? 0).toDouble().toStringAsFixed(2)} ₺',
-                        style: TextStyle(
-                          fontWeight: FontWeight.normal,
-                          fontSize: 14,
+                      title: Row(
+                        children: [
+                          Text(
+                            name,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: isCreator
+                                  ? Colors.orange.shade700
+                                  : Colors.teal.shade700,
+                            ),
+                          ),
+                          if (isCreator)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 7),
+                              child: Icon(Icons.star_rounded,
+                                  color: Colors.orange, size: 18),
+                            ),
+                        ],
+                      ),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 5),
+                        child: Row(
+                          children: [
+                            Icon(Icons.money, size: 17, color: Colors.teal),
+                            SizedBox(width: 4),
+                            Text(
+                              isCreator
+                                  ? 'Tüm borç ödendi'
+                                  : 'Borç: ${((data['amount'] as num?) ?? 0).toDouble().toStringAsFixed(2)} ₺',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 14,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       trailing: isCurrentUser && !isPaid
                           ? IconButton(
-                              icon: Icon(Icons.payment, color: Colors.green),
+                              icon: Icon(Icons.payment,
+                                  color: Colors.teal.shade400, size: 28),
+                              tooltip: 'Borcu öde',
                               onPressed: () => _confirmPayment(debt),
+                              splashRadius: 24,
                             )
                           : isPaid
-                              ? Icon(Icons.done, color: Colors.green)
+                              ? Icon(Icons.verified_rounded,
+                                  color: Colors.teal, size: 22)
                               : null,
                     ),
                   );
@@ -120,10 +171,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color.fromARGB(255, 207, 42, 30),
+        backgroundColor: Colors.red.shade400,
         tooltip: 'Gruptan Ayrıl',
-        child: Icon(Icons.exit_to_app),
+        child: Icon(Icons.exit_to_app_rounded),
         onPressed: _handleLeaveGroup,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
       ),
     );
   }
@@ -146,15 +200,22 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Borç Ödeme Onayı'),
         content: Text('Bu borcu ödemeyi onaylıyor musunuz?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: Text('Hayır')),
-          TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text('Evet')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal.shade400,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14))),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Evet'),
+          ),
         ],
       ),
     );
@@ -168,8 +229,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     }
   }
 
-  // _payGroupDebt fonksiyonunu güncelledik:
-
   Future<void> _payGroupDebt(DocumentSnapshot debtDoc) async {
     final data = debtDoc.data() as Map<String, dynamic>;
     final amount = (data['amount'] as num).toDouble();
@@ -177,25 +236,22 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final debtId = debtDoc.id;
 
     try {
-      final balanceStr = await ApiService.getBalance(currentUser!.uid);
-      final balance = double.tryParse(balanceStr) ?? 0;
+      final balances = await ApiService.getBalances(currentUser!.uid);
+      final balance = balances['balance'] ?? 0.0;
 
       if (balance >= amount) {
         await ApiService.payDebt(currentUser!.uid, lenderId, amount, debtId);
 
-        // Borç durumunu güncelle
         await _firestore
             .collection('debts')
             .doc(debtId)
             .update({'status': 'paid'});
 
-        // 🔥 Kullanıcı bilgilerini al
         final userDoc =
             await _firestore.collection('users').doc(currentUser!.uid).get();
         final userName = userDoc.data()?['name'] ?? 'Bilinmeyen';
         final userEmail = userDoc.data()?['email'] ?? 'Bilinmeyen';
 
-        // 🔔 Bildirimi oluştur
         await _firestore.collection('notifications').add({
           'type': 'debtPayment',
           'fromUserId': currentUser!.uid,
@@ -249,6 +305,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: Text('Gruptan Ayrıl'),
         content:
             Text('Gruptan ayrılmak ve kartı silmek istediğinize emin misiniz?'),
@@ -256,9 +313,15 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: Text('Hayır')),
-          TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text('Evet')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade400,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12))),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Evet'),
+          ),
         ],
       ),
     );

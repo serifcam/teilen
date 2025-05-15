@@ -69,16 +69,23 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text('Borç Ödeme'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title:
+            Text('Borç Ödeme', style: TextStyle(fontWeight: FontWeight.bold)),
         content: Text('Borcunu ödemek istiyor musun?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text('Hayır'),
           ),
-          TextButton(
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal.shade400,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16))),
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Evet', style: TextStyle(color: Colors.green)),
+            child: Text('Evet'),
           ),
         ],
       ),
@@ -93,20 +100,18 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
         final lenderUid = debtData['lenderId'];
         final debtAmount = (debtData['amount'] as num).toDouble();
 
-        final balanceStr = await ApiService.getBalance(borrowerUid);
-        final balance = double.tryParse(balanceStr) ?? 0.0;
+        final balances = await ApiService.getBalances(borrowerUid);
+        final balance = balances['balance'] ?? 0.0;
 
         if (balance >= debtAmount) {
           await ApiService.payDebt(
               borrowerUid, lenderUid, debtAmount, debtDocId);
 
-          // ✅ 1. Kendi borç kaydını 'paid' yap
           await FirebaseFirestore.instance
               .collection('individualDebts')
               .doc(debtDocId)
               .update({'status': 'paid'});
 
-          // ✅ 2. Karşı tarafın kartını da 'paid' yap
           final query = await FirebaseFirestore.instance
               .collection('individualDebts')
               .where('borrowerId', isEqualTo: lenderUid)
@@ -124,7 +129,6 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
                 .update({'status': 'paid'});
           }
 
-          // ✅ Bilgi bildirimi gönder
           await FirebaseFirestore.instance.collection('notifications').add({
             'type': 'paymentInfo',
             'status': 'info',
@@ -158,10 +162,14 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
 
   Widget _buildDebtCard(Map<String, dynamic> data, String docId) {
     final createdAt = data['createdAt'] as Timestamp?;
-    String formattedDate = createdAt != null
-        ? '${createdAt.toDate().day}/${createdAt.toDate().month}/${createdAt.toDate().year} '
-            '${createdAt.toDate().hour}:${createdAt.toDate().minute}'
-        : 'Tarih Bilinmiyor';
+    String formattedDate = 'Tarih Bilinmiyor';
+    if (createdAt != null) {
+      final localDate = createdAt
+          .toDate()
+          .add(Duration(hours: 3)); // <-- Saat düzeltme burada
+      formattedDate =
+          '${localDate.day.toString().padLeft(2, '0')}/${localDate.month.toString().padLeft(2, '0')}/${localDate.year} ${localDate.hour.toString().padLeft(2, '0')}:${localDate.minute.toString().padLeft(2, '0')}';
+    }
 
     bool isMeToFriend = data['relation'] == 'me_to_friend';
     final currentUser = FirebaseAuth.instance.currentUser;
@@ -169,25 +177,37 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
     bool isBorrower = data['borrowerId'] == currentUser?.uid;
     bool isPaid = data['status'] == 'paid';
 
+    final Color accentColor = isMeToFriend ? Colors.redAccent : Colors.teal;
+    final IconData directionIcon =
+        isMeToFriend ? Icons.arrow_outward_rounded : Icons.arrow_upward_rounded;
+
     return Dismissible(
       key: Key(docId),
-      direction: DismissDirection.endToStart,
+      direction: isPaid ? DismissDirection.endToStart : DismissDirection.none,
       confirmDismiss: (direction) async {
         if (isPaid) {
           final result = await showDialog<bool>(
             context: context,
             builder: (context) => AlertDialog(
-              title: Text('Onay'),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
+              title: Text('Silmek istediğine emin misin?'),
               content:
-                  Text('Borcunuzu ödediniz. Bu kartı silmek ister misiniz?'),
+                  Text('Borcun ödendi. Bu kartı geçmişten silmek ister misin?'),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
-                  child: Text('Hayır'),
+                  child: Text('Vazgeç'),
                 ),
-                TextButton(
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                  ),
                   onPressed: () => Navigator.of(context).pop(true),
-                  child: Text('Evet'),
+                  child: Text('Sil'),
                 ),
               ],
             ),
@@ -196,7 +216,7 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content: Text('Bu borç henüz ödenmediği için silemezsiniz.')),
+                content: Text('Bu borç henüz ödenmediği için silemezsin!')),
           );
           return false;
         }
@@ -212,71 +232,93 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
         );
       },
       background: Container(
-        color: Colors.red,
         alignment: Alignment.centerRight,
-        padding: EdgeInsets.only(right: 20),
-        child: Icon(Icons.delete, color: Colors.white),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+              colors: [Colors.red.shade300, Colors.red.shade700],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Padding(
+          padding: const EdgeInsets.only(right: 24.0),
+          child: Icon(Icons.delete, color: Colors.white, size: 32),
+        ),
       ),
       child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        elevation: 4,
-        margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        child: Row(
-          children: [
-            Container(
-              width: 60,
-              decoration: BoxDecoration(
-                border: Border(
-                  right: BorderSide(color: Colors.grey.shade300, width: 1),
-                ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    isMeToFriend ? Icons.arrow_upward : Icons.arrow_downward,
-                    color: isMeToFriend ? Colors.red : Colors.green,
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    isMeToFriend ? 'Borçluyum' : 'Borçlu',
+        margin: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        color: Theme.of(context).cardColor,
+        child: ListTile(
+          leading: Container(
+            decoration: BoxDecoration(
+              color: accentColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            padding: EdgeInsets.all(8),
+            child: Icon(
+              directionIcon,
+              color: accentColor,
+              size: 32,
+            ),
+          ),
+          title: Text(
+            '${data['friendName'] ?? data['friendEmail']}',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: accentColor,
+              letterSpacing: 0.2,
+            ),
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Borç: ${data['amount']} ₺',
                     style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                      color: isMeToFriend ? Colors.red : Colors.green,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('${data['friendName'] ?? data['friendEmail']}'),
-                    Text('Açıklama: ${data['description']}'),
-                    Text('Borç: ${data['amount']} TL'),
-                    Text(
-                      'Tarih: $formattedDate',
-                      style: TextStyle(fontSize: 10, color: Colors.grey[700]),
-                    ),
-                  ],
+                        fontSize: 13,
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w500)),
+                SizedBox(height: 2),
+                Text('Açıklama: ${data['description']}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[700],
+                    )),
+                Text(
+                  'Tarih: $formattedDate',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                 ),
-              ),
+                if (isPaid)
+                  Row(
+                    children: [
+                      Icon(Icons.verified, color: Colors.teal, size: 18),
+                      SizedBox(width: 4),
+                      Text(
+                        'Ödendi',
+                        style: TextStyle(
+                            color: Colors.teal.shade700,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12),
+                      ),
+                    ],
+                  ),
+              ],
             ),
-            if (isMeToFriend && isBorrower && !isPaid)
-              Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: IconButton(
-                  icon: Icon(Icons.payment, color: Colors.green, size: 28),
+          ),
+          trailing: isMeToFriend && isBorrower && !isPaid
+              ? IconButton(
+                  icon: Icon(Icons.payment,
+                      color: Colors.teal.shade400, size: 28),
                   tooltip: 'Borcu öde',
                   onPressed: () => _confirmPayment(context, docId, data),
-                ),
-              ),
-          ],
+                  splashRadius: 24,
+                )
+              : null,
         ),
       ),
     );
@@ -285,89 +327,142 @@ class _IndividualDebtScreenState extends State<IndividualDebtScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? Colors.grey.shade900
+          : Colors.grey.shade50,
       appBar: AppBar(
-        title: Text('Bireysel Borç Ekranı'),
+        title: Text(
+          'Bireysel Borçlar',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 21,
+            letterSpacing: 0.2,
+            fontFamily: 'Nunito',
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.teal.shade800,
+        elevation: 0.5,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(18),
+          ),
+        ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(10.0),
         child: Column(
           children: [
-            DropdownButtonFormField<String>(
-              value: _selectedFriendEmail,
-              items: _friendsList.map<DropdownMenuItem<String>>((friend) {
-                return DropdownMenuItem<String>(
-                  value: friend['email'],
-                  child: Text(friend['email']),
-                );
-              }).toList(),
-              onChanged: (value) =>
-                  setState(() => _selectedFriendEmail = value),
-              decoration: InputDecoration(
-                labelText: 'Arkadaş Seç',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-            SizedBox(height: 10),
-            TextField(
-              controller: _amountController,
-              decoration: InputDecoration(
-                labelText: 'Borç Miktarı',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              keyboardType: TextInputType.number,
-            ),
-            SizedBox(height: 10),
-            TextField(
-              controller: _descriptionController,
-              decoration: InputDecoration(
-                labelText: 'Açıklama',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-            SizedBox(height: 10),
-            Row(
-              children: [
-                ElevatedButton(
-                  onPressed: _sendDebtNotification,
-                  child: Text('Oluştur'),
-                ),
-                SizedBox(width: 6),
-                Expanded(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: RadioListTile<String>(
-                          dense: true,
-                          title:
-                              Text('Ben Ona', style: TextStyle(fontSize: 13)),
-                          value: 'me_to_friend',
-                          groupValue: _relation,
-                          onChanged: (value) =>
-                              setState(() => _relation = value!),
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
+              margin: EdgeInsets.only(bottom: 10),
+              child: Padding(
+                padding: const EdgeInsets.all(14.0),
+                child: Column(
+                  children: [
+                    DropdownButtonFormField<String>(
+                      value: _selectedFriendEmail,
+                      items:
+                          _friendsList.map<DropdownMenuItem<String>>((friend) {
+                        return DropdownMenuItem<String>(
+                          value: friend['email'],
+                          child: Text(friend['email']),
+                        );
+                      }).toList(),
+                      onChanged: (value) =>
+                          setState(() => _selectedFriendEmail = value),
+                      decoration: InputDecoration(
+                        labelText: 'Arkadaş Seç',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    TextField(
+                      controller: _amountController,
+                      decoration: InputDecoration(
+                        labelText: 'Borç Miktarı',
+                        prefixIcon: Icon(Icons.monetization_on_outlined),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      Expanded(
-                        child: RadioListTile<String>(
-                          dense: true,
-                          title: Text('O Bana', style: TextStyle(fontSize: 13)),
-                          value: 'friend_to_me',
-                          groupValue: _relation,
-                          onChanged: (value) =>
-                              setState(() => _relation = value!),
+                      keyboardType: TextInputType.number,
+                    ),
+                    SizedBox(height: 10),
+                    TextField(
+                      controller: _descriptionController,
+                      decoration: InputDecoration(
+                        labelText: 'Açıklama',
+                        prefixIcon: Icon(Icons.description_outlined),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    SizedBox(height: 10),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.add, color: Colors.white, size: 26),
+                          tooltip: 'Borç Oluştur',
+                          onPressed: _sendDebtNotification,
+                          splashRadius: 26,
+                          style: ButtonStyle(
+                            backgroundColor:
+                                MaterialStateProperty.all(Colors.teal.shade700),
+                            shape: MaterialStateProperty.all(
+                              RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14)),
+                            ),
+                            overlayColor: MaterialStateProperty.all(Colors
+                                .teal.shade900
+                                .withOpacity(0.12)), // basınca hafif efekt
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: RadioListTile<String>(
+                                  dense: true,
+                                  title: Text('Ben Ona',
+                                      style: TextStyle(fontSize: 13)),
+                                  value: 'me_to_friend',
+                                  groupValue: _relation,
+                                  activeColor: Colors.teal.shade400,
+                                  onChanged: (value) =>
+                                      setState(() => _relation = value!),
+                                ),
+                              ),
+                              Expanded(
+                                child: RadioListTile<String>(
+                                  dense: true,
+                                  title: Text('O Bana',
+                                      style: TextStyle(fontSize: 13)),
+                                  value: 'friend_to_me',
+                                  groupValue: _relation,
+                                  activeColor: Colors.redAccent,
+                                  onChanged: (value) =>
+                                      setState(() => _relation = value!),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-            SizedBox(height: 10),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: _debtService.getDebtsStream(),
