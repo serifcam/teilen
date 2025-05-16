@@ -36,24 +36,21 @@ class NotificationScreen extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot>(
         stream: _notificationService.getAllNotifications(user.uid),
         builder: (context, snapshot) {
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.notifications_none_rounded,
-                      size: 60, color: Colors.teal.shade100),
-                  SizedBox(height: 10),
-                  Text(
-                    'Hiçbir bildirim yok.',
-                    style: TextStyle(
-                        fontSize: 17,
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w500),
-                  ),
-                ],
-              ),
-            );
+          // HATA VARSA BURADA GÖSTER
+          if (snapshot.hasError) {
+            print('StreamBuilder ERROR: ${snapshot.error}');
+            return Center(child: Text('Hata: ${snapshot.error}'));
+          }
+
+          // VERİ GELMEDİYSE LOADING GÖSTER
+          if (!snapshot.hasData) {
+            return Center(child: CircularProgressIndicator());
+          }
+
+          // GELEN BİLDİRİMLERİ KONSOLA YAZDIR
+          print('Gelen bildirim sayısı: ${snapshot.data!.docs.length}');
+          for (final doc in snapshot.data!.docs) {
+            print('BİLDİRİM DATA: ${doc.data()}');
           }
 
           final notifications = snapshot.data!.docs;
@@ -96,11 +93,24 @@ class NotificationScreen extends StatelessWidget {
                 iconData = Icons.groups_2_rounded;
                 iconColor = Colors.teal.shade400;
                 final groupName = data['groupName'] ?? 'Grup';
-                final amount = data['amount'] ?? 0;
+                final totalAmount = (data['amount'] ?? 0).toDouble();
+
+                // Kişi başı miktarı hesapla
+                int kisiSayisi = 1;
+                if (data['memberIds'] != null && data['memberIds'] is List) {
+                  kisiSayisi = (data['memberIds'] as List).length;
+                  if (kisiSayisi < 1) kisiSayisi = 1;
+                }
+                final perPersonAmount =
+                    (kisiSayisi > 0 ? totalAmount / kisiSayisi : totalAmount)
+                        .toStringAsFixed(2);
+
                 final groupCreatorName =
                     data['fromUserName'] ?? 'Bir kullanıcı';
+
+                // 🔥 DÜZELTİLDİ: Kişi başına düşen borç gösterilecek!
                 message =
-                    "💬 $groupCreatorName sizinle \"$groupName\" grubunu oluşturmak istiyor. Kişi başı <b>$amount TL</b> ödeme düşüyor.";
+                    "💬 $groupCreatorName sizinle \"$groupName\" grubunu oluşturmak istiyor. Kişi başı <b>$perPersonAmount TL</b> ödeme düşüyor.";
               } else if (type == 'debtPayment') {
                 iconData = Icons.payments_rounded;
                 iconColor = Colors.green.shade400;

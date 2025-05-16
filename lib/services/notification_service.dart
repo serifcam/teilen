@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:teilen2/services/group_service.dart'; // ✅ Bunu da ekliyoruz
 
 class NotificationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -16,15 +15,12 @@ class NotificationService {
         String borrowerId = data['relation'] == 'friend_to_me'
             ? data['toUser']
             : data['fromUser'];
-
         String lenderId = data['relation'] == 'friend_to_me'
             ? data['fromUser']
             : data['toUser'];
-
         String borrowerEmail = data['relation'] == 'friend_to_me'
             ? data['toUserEmail'] ?? 'Bilinmeyen Kullanıcı'
             : data['fromUserEmail'] ?? 'Bilinmeyen Kullanıcı';
-
         String lenderEmail = data['relation'] == 'friend_to_me'
             ? data['fromUserEmail'] ?? 'Bilinmeyen Kullanıcı'
             : data['toUserEmail'] ?? 'Bilinmeyen Kullanıcı';
@@ -68,34 +64,23 @@ class NotificationService {
               .delete();
         }
       } else if (data['type'] == 'groupRequest') {
-        // ✅ GRUP BORÇ: Grup oluşturma talebi onaylandıysa
+        // ✅ GRUP: Davet kabul → user approvedMemberIds'e eklenir VE groupDebts'te onaylanır
         final groupId = data['groupId'];
         final userId = data['toUser'];
 
-        // 🔥 approvedMemberIds dizisine kullanıcıyı ekliyoruz
+        // 1. approvedMemberIds'ye ekle
         await _firestore.collection('groups').doc(groupId).update({
           'approvedMemberIds': FieldValue.arrayUnion([userId])
         });
 
-        // 🔥 ŞİMDİ KONTROL EDİYORUZ: Herkes onayladı mı?
-        final groupDoc =
-            await _firestore.collection('groups').doc(groupId).get();
-        final groupData = groupDoc.data();
-
-        if (groupData != null) {
-          List<dynamic> memberIds = groupData['memberIds'] ?? [];
-          List<dynamic> approvedMemberIds =
-              groupData['approvedMemberIds'] ?? [];
-
-          if (memberIds.length == approvedMemberIds.length) {
-            // ✅ Herkes onayladı ➔ Grup kurulacak
-            final GroupService _groupService = GroupService();
-            await _groupService.createDebtsForGroup(groupId);
-            await _firestore.collection('groups').doc(groupId).update({
-              'isGroupFormed': true,
-            });
-            print('✅ Grup tamamlandı ve borçlar oluşturuldu.');
-          }
+        // 2. Kullanıcının groupDebts'inde isApproved'u true yap!
+        final debtQuery = await _firestore
+            .collection('groupDebts')
+            .where('groupId', isEqualTo: groupId)
+            .where('fromUser', isEqualTo: userId)
+            .get();
+        for (final doc in debtQuery.docs) {
+          await doc.reference.update({'isApproved': true});
         }
       }
 
@@ -112,7 +97,7 @@ class NotificationService {
     }
   }
 
-  /// Bekleyen (pending) bireysel borç bildirimlerini getirir
+  /// Bekleyen (pending) bireysel ve grup bildirimlerini getirir
   Stream<QuerySnapshot> getPendingNotifications(String userId) {
     return _firestore
         .collection('notifications')
@@ -136,7 +121,7 @@ class NotificationService {
       'groupId': groupId,
       'groupName': groupName,
       'amount': amount,
-      'status': 'pending', // İstersen 'unread' da yapabiliriz
+      'status': 'pending',
       'createdAt': Timestamp.now(),
     });
   }
@@ -146,6 +131,7 @@ class NotificationService {
     return _firestore
         .collection('notifications')
         .where('toUser', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
         .snapshots();
   }
 

@@ -58,10 +58,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: _firestore
-            .collection('debts')
+            .collection('groupDebts')
             .where('groupId', isEqualTo: widget.groupId)
             .snapshots(),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Hata: ${snapshot.error}'));
+          }
           if (!snapshot.hasData)
             return Center(child: CircularProgressIndicator());
 
@@ -92,6 +95,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               final isCurrentUser = userId == currentUser!.uid;
               final isPaid = data['status'] == 'paid';
               final isCreator = userId == _creatorId;
+              final isApproved = data['isApproved'] == true;
 
               return FutureBuilder<String>(
                 future: _getUserName(userId),
@@ -137,31 +141,49 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                           children: [
                             Icon(Icons.money, size: 17, color: Colors.teal),
                             SizedBox(width: 4),
-                            Text(
-                              isCreator
-                                  ? 'Tüm borç ödendi'
-                                  : 'Borç: ${((data['amount'] as num?) ?? 0).toDouble().toStringAsFixed(2)} ₺',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w500,
-                                fontSize: 14,
-                                color: Colors.grey.shade700,
+                            if (isCreator)
+                              Text(
+                                'Tüm borç ödendi',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                  color: Colors.grey.shade700,
+                                ),
+                              )
+                            else if (!isApproved)
+                              Text(
+                                'Bekleniyor',
+                                style: TextStyle(
+                                  color: Colors.orange.shade400,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
+                              )
+                            else
+                              Text(
+                                'Borç: ${((data['amount'] as num?) ?? 0).toDouble().toStringAsFixed(2)} ₺',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                  color: Colors.grey.shade700,
+                                ),
                               ),
-                            ),
                           ],
                         ),
                       ),
-                      trailing: isCurrentUser && !isPaid
-                          ? IconButton(
-                              icon: Icon(Icons.payment,
-                                  color: Colors.teal.shade400, size: 28),
-                              tooltip: 'Borcu öde',
-                              onPressed: () => _confirmPayment(debt),
-                              splashRadius: 24,
-                            )
-                          : isPaid
-                              ? Icon(Icons.verified_rounded,
-                                  color: Colors.teal, size: 22)
-                              : null,
+                      trailing:
+                          (!isCreator && isApproved && isCurrentUser && !isPaid)
+                              ? IconButton(
+                                  icon: Icon(Icons.payment,
+                                      color: Colors.teal.shade400, size: 28),
+                                  tooltip: 'Borcu öde',
+                                  onPressed: () => _confirmPayment(debt),
+                                  splashRadius: 24,
+                                )
+                              : isPaid
+                                  ? Icon(Icons.verified_rounded,
+                                      color: Colors.teal, size: 22)
+                                  : null,
                     ),
                   );
                 },
@@ -243,7 +265,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         await ApiService.payDebt(currentUser!.uid, lenderId, amount, debtId);
 
         await _firestore
-            .collection('debts')
+            .collection('groupDebts')
             .doc(debtId)
             .update({'status': 'paid'});
 
@@ -288,7 +310,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final userId = currentUser!.uid;
 
     final unpaidDebts = await _firestore
-        .collection('debts')
+        .collection('groupDebts')
         .where('groupId', isEqualTo: widget.groupId)
         .where('fromUser', isEqualTo: userId)
         .where('status', isEqualTo: 'pending')
@@ -334,13 +356,30 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
     if (data == null) return;
 
-    List<dynamic> memberIds = data['memberIds'];
+    List<dynamic> memberIds = List.from(data['memberIds']);
+    List<dynamic> approvedMemberIds =
+        List.from(data['approvedMemberIds'] ?? []);
+
     memberIds.remove(userId);
+    approvedMemberIds.remove(userId);
 
     if (memberIds.isEmpty) {
       await groupRef.delete();
     } else {
-      await groupRef.update({'memberIds': memberIds});
+      await groupRef.update({
+        'memberIds': memberIds,
+        'approvedMemberIds': approvedMemberIds,
+      });
+    }
+
+    // Kullanıcının groupDebts dökümanlarını da silelim!
+    final debtDocs = await _firestore
+        .collection('groupDebts')
+        .where('groupId', isEqualTo: widget.groupId)
+        .where('fromUser', isEqualTo: userId)
+        .get();
+    for (final doc in debtDocs.docs) {
+      await doc.reference.delete();
     }
 
     Navigator.pop(context);

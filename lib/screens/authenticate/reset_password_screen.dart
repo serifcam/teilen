@@ -3,8 +3,9 @@ import 'package:teilen2/services/auth_service.dart';
 import 'package:teilen2/widgets/auth_form.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
+  const ResetPasswordScreen({super.key});
   @override
-  _ResetPasswordScreenState createState() => _ResetPasswordScreenState();
+  State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
 }
 
 class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
@@ -21,24 +22,20 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     if (!_formKey.currentState!.validate()) return;
     _formKey.currentState!.save();
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       await AuthService().resetPassword(_email);
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
+          content: const Text(
             'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.',
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: Colors.white),
           ),
-          backgroundColor: Colors.green,
+          backgroundColor: Colors.green.shade700,
         ),
       );
-
-      Navigator.of(context).pop(); // Giriş ekranına dön
+      Navigator.of(context).pop();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -46,24 +43,31 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             'Hata: ${e.toString()}',
             style: const TextStyle(color: Colors.white),
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: Colors.red.shade700,
         ),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final buttonColor =
+        isDark ? const Color(0xFF18D7B1) : const Color(0xFF0B9581);
+
     return Scaffold(
+      backgroundColor:
+          isDark ? const Color(0xFF181F1B) : const Color(0xFFF7FDFD),
       body: Stack(
         children: [
           AuthForm(
             formKey: _formKey,
             title: 'Şifre Sıfırla',
+            submitButtonText: 'Bağlantı Gönder',
+            isLoading: _isLoading,
+            onSubmit: _submitResetForm,
             fields: [
               TextFormField(
                 decoration: InputDecoration(
@@ -76,28 +80,31 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   fillColor: Colors.white,
                 ),
                 keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value == null || !_isEmailValid(value.trim())) {
-                    return 'Geçerli bir e-posta adresi girin.';
-                  }
-                  return null;
-                },
+                validator: (value) =>
+                    (value == null || !_isEmailValid(value.trim()))
+                        ? 'Geçerli bir e-posta adresi girin.'
+                        : null,
                 onSaved: (value) => _email = value!.trim(),
               ),
             ],
-            submitButtonText: 'Bağlantı Gönder',
-            onSubmit: _submitResetForm,
-            alternateAction: TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
-                'Geri Dön',
-                style: TextStyle(color: Colors.white),
+            alternateAction: Center(
+              child: TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: buttonColor,
+                  textStyle: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Geri Dön'),
               ),
             ),
           ),
           if (_isLoading)
             Container(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withOpacity(0.18),
               child: const Center(
                 child: CircularProgressIndicator(),
               ),

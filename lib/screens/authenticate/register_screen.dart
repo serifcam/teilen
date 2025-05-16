@@ -6,8 +6,10 @@ import 'package:teilen2/services/firestore_service.dart';
 import 'package:teilen2/widgets/auth_form.dart';
 
 class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
+
   @override
-  _RegisterScreenState createState() => _RegisterScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
@@ -20,10 +22,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
 
-  bool _isEmailValid(String email) {
-    RegExp regex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-    return regex.hasMatch(email);
-  }
+  bool _isEmailValid(String email) =>
+      RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email);
 
   Future<void> _submitRegisterForm() async {
     if (!_formKey.currentState!.validate()) return;
@@ -31,21 +31,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (_password != _confirmPassword) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Şifreler uyuşmuyor.')),
+        const SnackBar(content: Text('Şifreler uyuşmuyor.')),
       );
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      // !! ADI DA GÖNDERİYORUZ !!
+      // Kayıt işlemi
       final userCredential =
           await AuthService().register(_email, _password, _name);
 
-      // Firestore'a ekleme işlemi (Firebase tarafı için, istersen)
+      // Firestore'a ekle
       await FirestoreService().addUserToFirestore(
         userCredential.user!.uid,
         _name,
@@ -53,9 +51,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text(
-              'E-posta doğrulama bağlantısı gönderildi. Lütfen e-postanızı kontrol edin.'),
+            'E-posta doğrulama bağlantısı gönderildi. Lütfen e-postanızı kontrol edin.',
+          ),
         ),
       );
 
@@ -83,20 +82,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
         SnackBar(content: Text('Beklenmeyen bir hata oluştu: $error')),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? Color(0xFF181F1B)
+          : Color(0xFFF7FDFD),
       body: Stack(
         children: [
           AuthForm(
             formKey: _formKey,
             title: 'Kayıt Ol',
+            submitButtonText: 'Kayıt Ol',
+            isLoading: _isLoading,
+            onSubmit: _submitRegisterForm,
             fields: [
               TextFormField(
                 decoration: InputDecoration(
@@ -108,15 +111,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   filled: true,
                   fillColor: Colors.white,
                 ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Lütfen adınızı girin.';
-                  }
-                  return null;
-                },
+                validator: (value) => (value == null || value.trim().isEmpty)
+                    ? 'Lütfen adınızı girin.'
+                    : null,
                 onSaved: (value) => _name = value!.trim(),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               TextFormField(
                 decoration: InputDecoration(
                   labelText: 'E-Posta',
@@ -128,15 +128,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   fillColor: Colors.white,
                 ),
                 keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value == null || !_isEmailValid(value.trim())) {
-                    return 'Geçerli bir e-posta adresi girin.';
-                  }
-                  return null;
-                },
+                validator: (value) =>
+                    (value == null || !_isEmailValid(value.trim()))
+                        ? 'Geçerli bir e-posta adresi girin.'
+                        : null,
                 onSaved: (value) => _email = value!.trim(),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               TextFormField(
                 decoration: InputDecoration(
                   labelText: 'Şifre',
@@ -152,24 +150,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       color: Colors.black,
                     ),
                     onPressed: () {
-                      setState(() {
-                        _isPasswordVisible = !_isPasswordVisible;
-                      });
+                      setState(() => _isPasswordVisible = !_isPasswordVisible);
                     },
                   ),
                   filled: true,
                   fillColor: Colors.white,
                 ),
                 obscureText: !_isPasswordVisible,
-                validator: (value) {
-                  if (value == null || value.length < 6) {
-                    return 'Şifre en az 6 karakter olmalı.';
-                  }
-                  return null;
-                },
+                validator: (value) => (value == null || value.length < 6)
+                    ? 'Şifre en az 6 karakter olmalı.'
+                    : null,
                 onSaved: (value) => _password = value!,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               TextFormField(
                 decoration: InputDecoration(
                   labelText: 'Şifre Tekrar',
@@ -185,42 +178,47 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       color: Colors.black,
                     ),
                     onPressed: () {
-                      setState(() {
-                        _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
-                      });
+                      setState(() => _isConfirmPasswordVisible =
+                          !_isConfirmPasswordVisible);
                     },
                   ),
                   filled: true,
                   fillColor: Colors.white,
                 ),
                 obscureText: !_isConfirmPasswordVisible,
-                validator: (value) {
-                  if (value == null || value.length < 6) {
-                    return 'Şifre en az 6 karakter olmalı.';
-                  }
-                  return null;
-                },
+                validator: (value) => (value == null || value.length < 6)
+                    ? 'Şifre en az 6 karakter olmalı.'
+                    : null,
                 onSaved: (value) => _confirmPassword = value!,
               ),
             ],
-            submitButtonText: 'Kayıt Ol',
-            onSubmit: _submitRegisterForm,
             alternateAction: TextButton(
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (context) => LoginScreen()),
               ),
-              child: const Text(
-                'Hesabınız var mı? Giriş yapın.',
-                style: TextStyle(color: Colors.white),
+              child: RichText(
+                text: TextSpan(
+                  text: "Hesabınız var mı? ",
+                  style: TextStyle(color: Colors.grey[600], fontSize: 15),
+                  children: [
+                    TextSpan(
+                      text: "Giriş yapın",
+                      style: TextStyle(
+                        color: Color(0xFF00C3A5),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15.5,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
           if (_isLoading)
             Container(
-              color: Colors.black.withOpacity(0.5),
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
+              color: Colors.black.withOpacity(0.18),
+              child: const Center(child: CircularProgressIndicator()),
             ),
         ],
       ),

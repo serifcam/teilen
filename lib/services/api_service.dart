@@ -21,7 +21,7 @@ class ApiService {
       body: {
         'firebase_uid': firebaseUid,
         'email': email,
-        'name': name, // <-- Burada artık name gönderiyoruz!
+        'name': name,
         'balance': '0.00',
       },
       headers: {
@@ -64,12 +64,11 @@ class ApiService {
     }
   }
 
-  // ✅ Borç ödeme fonksiyonu (ÇİFT PHP endpoint ile!)
+  // ✅ Borç ödeme fonksiyonu (TEK PHP endpoint ile!)
   static Future<void> payDebt(String borrowerUid, String lenderUid,
       double amount, String debtDocId) async {
-    // 1. Borçlu için işlem kaydı
     final payUrl = '$baseUrl/pay_debt.php';
-    final payResponse = await http.post(
+    final response = await http.post(
       Uri.parse(payUrl),
       body: {
         'borrower_uid': borrowerUid,
@@ -82,34 +81,14 @@ class ApiService {
       },
       encoding: Encoding.getByName('utf-8'),
     );
-    final payData = jsonDecode(payResponse.body);
 
-    if (payData['success'] != true) {
-      throw Exception('Ödeme başarısız (borrower): ${payData['msg']}');
+    final data = jsonDecode(response.body);
+
+    if (data['success'] != true) {
+      throw Exception('Ödeme başarısız: ${data['msg']}');
     }
 
-    // 2. Alacaklı için işlem kaydı
-    final paidUrl = '$baseUrl/paid_debt.php';
-    final paidResponse = await http.post(
-      Uri.parse(paidUrl),
-      body: {
-        'lender_uid': lenderUid,
-        'borrower_uid': borrowerUid,
-        'amount': amount.toString(),
-        'debt_doc_id': debtDocId,
-      },
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      encoding: Encoding.getByName('utf-8'),
-    );
-    final paidData = jsonDecode(paidResponse.body);
-
-    if (paidData['success'] != true) {
-      throw Exception('Ödeme başarısız (lender): ${paidData['msg']}');
-    }
-
-    print('✅ Borç hem borçlu hem alacaklı için başarıyla işlendi!');
+    print('✅ Borç iki taraf için de başarıyla işlendi!');
   }
 
   // ✅ Para yükleme fonksiyonu (ana banka veritabanından çekilecek)
