@@ -110,7 +110,7 @@ class NotificationScreen extends StatelessWidget {
 
                 // 🔥 DÜZELTİLDİ: Kişi başına düşen borç gösterilecek!
                 message =
-                    "💬 $groupCreatorName sizinle \"$groupName\" grubunu oluşturmak istiyor. Kişi başı <b>$perPersonAmount TL</b> ödeme düşüyor.";
+                    "$groupCreatorName sizinle \"$groupName\" grubunu oluşturmak istiyor. Kişi başı <b>$perPersonAmount TL</b> ödeme düşüyor.";
               } else if (type == 'debtPayment') {
                 iconData = Icons.payments_rounded;
                 iconColor = Colors.green.shade400;

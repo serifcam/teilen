@@ -375,7 +375,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       SizedBox(height: 2),
                       Text(
-                        'Ana Bakiye',
+                        'Banka Bakiyesi',
                         style: TextStyle(
                             fontWeight: FontWeight.w600, fontSize: 13),
                       ),
